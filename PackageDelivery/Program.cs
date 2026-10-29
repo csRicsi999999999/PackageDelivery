@@ -57,7 +57,7 @@ internal class Program
 
                 case "4":
                     // TODO: Itt hívd meg a csomag nyomkövetéséért felelős saját komponensedet.
-                    Console.WriteLine("Ez a funkció még nincs megvalósítva.");
+                    packageService.TrackingHistory();
                     break;
 
                 case "5":

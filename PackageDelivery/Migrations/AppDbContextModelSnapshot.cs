@@ -46,6 +46,9 @@ namespace PackageDelivery.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("BoxType")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("City")
                         .HasColumnType("TEXT");
 
@@ -179,7 +182,7 @@ namespace PackageDelivery.Migrations
             modelBuilder.Entity("PackageDelivery.Models.Trackings", b =>
                 {
                     b.HasOne("PackageDelivery.Models.Package", "Package")
-                        .WithMany("TrackingHistory")
+                        .WithMany()
                         .HasForeignKey("PackageId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -192,11 +195,6 @@ namespace PackageDelivery.Migrations
                     b.Navigation("RecipientPackages");
 
                     b.Navigation("SentPackages");
-                });
-
-            modelBuilder.Entity("PackageDelivery.Models.Package", b =>
-                {
-                    b.Navigation("TrackingHistory");
                 });
 #pragma warning restore 612, 618
         }

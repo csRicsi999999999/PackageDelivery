@@ -2,6 +2,8 @@
 using PackageDelivery.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
+using System.Net.Security;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml.Linq;
@@ -119,7 +121,8 @@ namespace PackageDelivery.Service
                     Weight = weight,
                     OtherInfo = otherInfo,
                     CreatedAt = DateTime.Now,
-                    Status = PackageStatus.Registered
+                    Status = PackageStatus.Registered,
+                    BoxType = boxType
                 };
             }
 
@@ -162,7 +165,8 @@ namespace PackageDelivery.Service
                     HandlingInstructions = instructions,
                     OtherInfo = otherInfo,
                     CreatedAt = DateTime.Now,
-                    Status = PackageStatus.Registered
+                    Status = PackageStatus.Registered,
+                    BoxType = boxType  
                 };
             }
 
@@ -213,6 +217,7 @@ namespace PackageDelivery.Service
                 OtherInfo = otherInfo,
                 CreatedAt = DateTime.Now,
                 Status = PackageStatus.Registered,
+                BoxType = boxType
                };
             }
 
@@ -247,8 +252,6 @@ namespace PackageDelivery.Service
             Console.ReadKey();
         }
 
-
-
         public void PackageProcessor()
         {
             Console.WriteLine("Kérlek add meg a csomag azonosítóját: ");
@@ -258,8 +261,212 @@ namespace PackageDelivery.Service
             {
                 if (chooseBox == item.TrackingNumber)
                 {
-                    Console.WriteLine(item.Status);
-                    //test
+                    {
+                        if (item.Status == PackageStatus.Registered)
+                        {
+                            Console.WriteLine($"Jelenlegi állapot: {item.Status}");
+                            Console.WriteLine("Következő lehetséges állapot: 1 - Csomag elfogadva");
+                            string? choice = Console.ReadLine(); ;
+                            if (choice == "1")
+                            {
+                                item.Status = PackageStatus.Accepted;
+                                Console.WriteLine("A csomag fogadva lett a rendszerben.");
+                            }
+                            else
+                            {
+                                Console.WriteLine("Érvénytelen választás!");
+                            }
+
+                        }
+
+
+                        else if (item.Status == PackageStatus.Accepted)
+                        {
+                            Console.WriteLine($"Jelenlegi állapot: {item.Status}");
+                            Console.WriteLine("Következő lehetséges állapot: 1 - Kiszállítás megkezdése");
+                            string? choice = Console.ReadLine(); ;
+                            if (choice == "1")
+                            {
+                                item.Status = PackageStatus.AtDepot;
+                                Console.WriteLine("A csomag át lett helyezve a depóba.");
+                            }
+                            else
+                            {
+                                Console.WriteLine("Érvénytelen választás!");
+                            }   
+                        }
+
+
+
+                        else if (item.Status == PackageStatus.AtDepot)
+                        {
+                            Console.WriteLine($"Jelenlegi állapot: {item.Status}");
+                            Console.WriteLine("Következő lehetséges állapot: 1 - A csomag kiszállításra kijelölve");
+                            string? choice = Console.ReadLine(); 
+                            if (choice == "1")
+                            {
+                                item.Status = PackageStatus.OutForDelivery;
+                                Console.WriteLine("Kiszállítás alatt.");
+                            }
+                            else
+                            {
+                                Console.WriteLine("Érvénytelen választás!");
+                            }
+                        }
+
+
+
+
+
+                        else if (item.Status == PackageStatus.OutForDelivery)
+                        {
+                            Console.WriteLine("Mi történt a csomaggal? (1 - Kézbesítve, 2 - Kézbesítés sikertelen)");
+                            string? choice = Console.ReadLine();
+                            switch (choice)
+                            {
+                                case "1":
+                                    item.Status = PackageStatus.Delivered;
+                                    Console.WriteLine("A csomag kézbesítve.");
+                                    break;
+
+                                case "2":
+                                    item.Status = PackageStatus.DeliveryFailed;
+                                    Console.WriteLine("A csomag kézbesítése sikertelen.");
+                                    break;
+                                default:
+                                    Console.WriteLine("Érvénytelen választás!");
+                                    break;
+                            }
+                        }
+
+
+
+
+
+                        else if (item.Status == PackageStatus.DeliveryFailed)
+                        {
+                            Console.WriteLine("Mi történt a csomaggal? (1 - Kiszállítás megkezdése, 2 - Visszaküldés)");
+                            string? choice = Console.ReadLine();
+                            switch (choice)
+                            {
+                                case "1":
+                                    item.Status = PackageStatus.OutForDelivery;
+                                    Console.WriteLine("A csomag kiszállításra kijelölve.");
+                                    break;
+
+                                case "2":
+                                    item.Status = PackageStatus.Returning;
+                                    Console.WriteLine("A csomag visszaküldésre kerül.");
+                                    break;
+
+                                default:
+                                    Console.WriteLine("Érvénytelen választás!");
+                                    break;
+                            }
+                        }
+
+
+
+
+
+                        else if (item.Status == PackageStatus.Returning)
+                        {
+                            Console.WriteLine($"Jelenlegi állapot: {item.Status}");
+                            Console.WriteLine("Következő lehetséges állapot: 1 - Visszaküldés");
+                            string? choice = Console.ReadLine();
+                            if (choice == "1")
+                            {
+                                item.Status = PackageStatus.Returned;
+                                Console.WriteLine("Visszaküldve.");
+                            }
+                            else
+                            {
+                                Console.WriteLine("Érvénytelen választás!");
+                            }
+                        }
+
+
+
+
+                        else if (item.Status == PackageStatus.Returned)
+                        {
+                            Console.WriteLine("A csomag visszaküldve a feladónak.");
+
+                        }
+                        else if (item.Status == PackageStatus.Delivered)
+                        {
+                            Console.WriteLine("A csomag kézbesítve.");
+                            
+                        }
+                    }
+
+                    trackings = new Trackings
+                    {
+                        PackageId = item.Id,
+                        Status = item.Status,
+                        Timestamp = DateTime.Now,
+                        Comment = null,
+                        FailureReason = null
+                    };
+
+                    _db.Trackings.Add(trackings!);
+                    _db.SaveChanges();
+                }
+            }
+        }
+
+        public void TrackingHistory()
+        {
+            Console.WriteLine("Kérlek add meg a csomag azonosítóját: ");
+            string? chooseBox = Console.ReadLine();
+            foreach (var item in _db.Packages)
+            {
+
+                var senders = _db.Customers.Where(s => s.Id == item.SenderId).ToList();
+                var recipient = _db.Customers.Where(r => r.Id == item.RecipientId).ToList();
+
+                if (chooseBox == item.TrackingNumber)
+                {
+                    Console.WriteLine($"Csomag: {item.TrackingNumber}");
+                    Console.WriteLine($"Feladó: {senders[0].Name}");
+                    Console.WriteLine($"Címzett: {recipient[0].Name}");
+                    Console.WriteLine($"Tömeg: {item.Weight} kg");
+                    if (item.BoxType == 1)
+                    {
+                        Console.WriteLine("Tipus: Normál");
+                    }
+                    if(item.BoxType == 2)
+                    {
+                        Console.WriteLine("Tipus: Törékeny");
+                        Console.WriteLine($"Törékenység: {((FragilePackage)item).FragileLevel.ToString()}"); 
+                        Console.WriteLine($"Kezelési utasítás: {((FragilePackage)item).HandlingInstructions}");
+                    }
+                    if(item.BoxType == 3)
+                    {
+                        Console.WriteLine("Tipus: Hűtést igénylő csomag");
+                        Console.WriteLine($"Megengedett tárolási hőmérséklet tartomány: {((RefrigeratedPackage)item).MinTemperature} °C és {((RefrigeratedPackage)item).MaxTemperature} °C");
+                    }
+
+
+                    Console.WriteLine($"Kézbesítési Cím: {item.PostalCode} + {item.City} + {item.StreetName} {item.StreetType} {item.HouseNumber}");
+                    Console.WriteLine($"Feladás dátuma: {item.CreatedAt}");
+                    Console.WriteLine($"Aktuális állapota: {item.Status}");
+
+
+                    
+                    var trackingHistory = _db.Trackings.Where(t => t.PackageId == item.Id).OrderBy(t => t.Timestamp).ToList();
+                    if (trackingHistory.Count == 0)
+                    {
+                        Console.WriteLine("Nincs nyomkövetési előzmény.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("\nNyomkövetés:");
+                        foreach (var tracking in trackingHistory)
+                        {
+                            Console.WriteLine($"- {tracking.Timestamp}: {tracking.Status} - {tracking.Comment}");
+                        }
+                    }
                 }
             }
         }
