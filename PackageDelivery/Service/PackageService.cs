@@ -1,4 +1,5 @@
-﻿using PackageDelivery.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using PackageDelivery.Data;
 using PackageDelivery.Models;
 using System;
 using System.Collections.Generic;
@@ -166,7 +167,7 @@ namespace PackageDelivery.Service
                     OtherInfo = otherInfo,
                     CreatedAt = DateTime.Now,
                     Status = PackageStatus.Registered,
-                    BoxType = boxType  
+                    BoxType = boxType
                 };
             }
 
@@ -202,23 +203,23 @@ namespace PackageDelivery.Service
                     max = int.Parse(Console.ReadLine()!);
                 }
 
-               package = new RefrigeratedPackage
-            { 
-                SenderId = sender!.Id,
-                RecipientId = recipient!.Id,
-                PostalCode = postalCode,
-                City = city,
-                StreetName = street,
-                StreetType = streetType,
-                HouseNumber = houseNumber,
-                Weight = weight,
-                MinTemperature = min,
-                MaxTemperature = max,
-                OtherInfo = otherInfo,
-                CreatedAt = DateTime.Now,
-                Status = PackageStatus.Registered,
-                BoxType = boxType
-               };
+                package = new RefrigeratedPackage
+                {
+                    SenderId = sender!.Id,
+                    RecipientId = recipient!.Id,
+                    PostalCode = postalCode,
+                    City = city,
+                    StreetName = street,
+                    StreetType = streetType,
+                    HouseNumber = houseNumber,
+                    Weight = weight,
+                    MinTemperature = min,
+                    MaxTemperature = max,
+                    OtherInfo = otherInfo,
+                    CreatedAt = DateTime.Now,
+                    Status = PackageStatus.Registered,
+                    BoxType = boxType
+                };
             }
 
 
@@ -241,7 +242,7 @@ namespace PackageDelivery.Service
                 PackageId = package!.Id,
                 Status = PackageStatus.Registered,
                 Timestamp = DateTime.Now,
-                Comment = "A csomag regisztrálva lett a rendszerben.",
+                Comment = null,
                 FailureReason = null
             };
 
@@ -257,10 +258,21 @@ namespace PackageDelivery.Service
             Console.WriteLine("Kérlek add meg a csomag azonosítóját: ");
             string? chooseBox = Console.ReadLine();
 
-            foreach(var item in _db.Packages)
+            string? failed = null;
+
+            foreach (var item in _db.Packages)
             {
                 if (chooseBox == item.TrackingNumber)
                 {
+                    if (item.Status == PackageStatus.Returned)
+                    {
+                        Console.WriteLine("A csomag vissza lett küldve már a feladónak.");
+                    }
+                    else if (item.Status == PackageStatus.Delivered)
+                    {
+                        Console.WriteLine("A csomag már kézbesitve lett.");
+                    }
+                    else
                     {
                         if (item.Status == PackageStatus.Registered)
                         {
@@ -293,7 +305,7 @@ namespace PackageDelivery.Service
                             else
                             {
                                 Console.WriteLine("Érvénytelen választás!");
-                            }   
+                            }
                         }
 
 
@@ -302,7 +314,7 @@ namespace PackageDelivery.Service
                         {
                             Console.WriteLine($"Jelenlegi állapot: {item.Status}");
                             Console.WriteLine("Következő lehetséges állapot: 1 - A csomag kiszállításra kijelölve");
-                            string? choice = Console.ReadLine(); 
+                            string? choice = Console.ReadLine();
                             if (choice == "1")
                             {
                                 item.Status = PackageStatus.OutForDelivery;
@@ -331,7 +343,23 @@ namespace PackageDelivery.Service
 
                                 case "2":
                                     item.Status = PackageStatus.DeliveryFailed;
-                                    Console.WriteLine("A csomag kézbesítése sikertelen.");
+                                    Console.WriteLine("A csomag kézbesítése sikertelen volt");
+                                    Console.WriteLine("Oka:  1 - A címzett nem volt elérhető " +
+                                        "2 - A cím nem volt megtalálható" +
+                                        "3 - A címzett megtagadta az átvételt");
+                                    int reason = int.Parse(Console.ReadLine()!);
+                                    if (reason == 1)
+                                    {
+                                        failed = "RecipientNotAvailable";
+                                    }
+                                    if (reason == 2)
+                                    {
+                                        failed = "AddressNotFound";
+                                    }
+                                    if (reason == 3)
+                                    {
+                                        failed = "RecipientRefused";
+                                    }
                                     break;
                                 default:
                                     Console.WriteLine("Érvénytelen választás!");
@@ -341,11 +369,10 @@ namespace PackageDelivery.Service
 
 
 
-
-
                         else if (item.Status == PackageStatus.DeliveryFailed)
                         {
                             Console.WriteLine("Mi történt a csomaggal? (1 - Kiszállítás megkezdése, 2 - Visszaküldés)");
+
                             string? choice = Console.ReadLine();
                             switch (choice)
                             {
@@ -385,32 +412,29 @@ namespace PackageDelivery.Service
                             }
                         }
 
-
-
-
                         else if (item.Status == PackageStatus.Returned)
                         {
                             Console.WriteLine("A csomag visszaküldve a feladónak.");
-
                         }
                         else if (item.Status == PackageStatus.Delivered)
                         {
                             Console.WriteLine("A csomag kézbesítve.");
-                            
                         }
+
+
+                        trackings = new Trackings
+                        {
+                            PackageId = item.Id,
+                            Status = item.Status,
+                            Timestamp = DateTime.Now,
+                            Comment = null,
+                            FailureReason = failed
+                        };
+
+                        _db.Trackings.Add(trackings!);
+                        _db.SaveChanges();
                     }
 
-                    trackings = new Trackings
-                    {
-                        PackageId = item.Id,
-                        Status = item.Status,
-                        Timestamp = DateTime.Now,
-                        Comment = null,
-                        FailureReason = null
-                    };
-
-                    _db.Trackings.Add(trackings!);
-                    _db.SaveChanges();
                 }
             }
         }
@@ -435,25 +459,25 @@ namespace PackageDelivery.Service
                     {
                         Console.WriteLine("Tipus: Normál");
                     }
-                    if(item.BoxType == 2)
+                    if (item.BoxType == 2)
                     {
                         Console.WriteLine("Tipus: Törékeny");
-                        Console.WriteLine($"Törékenység: {((FragilePackage)item).FragileLevel.ToString()}"); 
+                        Console.WriteLine($"Törékenység: {((FragilePackage)item).FragileLevel.ToString()}");
                         Console.WriteLine($"Kezelési utasítás: {((FragilePackage)item).HandlingInstructions}");
                     }
-                    if(item.BoxType == 3)
+                    if (item.BoxType == 3)
                     {
                         Console.WriteLine("Tipus: Hűtést igénylő csomag");
                         Console.WriteLine($"Megengedett tárolási hőmérséklet tartomány: {((RefrigeratedPackage)item).MinTemperature} °C és {((RefrigeratedPackage)item).MaxTemperature} °C");
                     }
 
 
-                    Console.WriteLine($"Kézbesítési Cím: {item.PostalCode} + {item.City} + {item.StreetName} {item.StreetType} {item.HouseNumber}");
+                    Console.WriteLine($"Kézbesítési Cím: {item.PostalCode} {item.City} {item.StreetName} {item.StreetType} {item.HouseNumber}");
                     Console.WriteLine($"Feladás dátuma: {item.CreatedAt}");
                     Console.WriteLine($"Aktuális állapota: {item.Status}");
 
 
-                    
+
                     var trackingHistory = _db.Trackings.Where(t => t.PackageId == item.Id).OrderBy(t => t.Timestamp).ToList();
                     if (trackingHistory.Count == 0)
                     {
@@ -464,7 +488,14 @@ namespace PackageDelivery.Service
                         Console.WriteLine("\nNyomkövetés:");
                         foreach (var tracking in trackingHistory)
                         {
-                            Console.WriteLine($"- {tracking.Timestamp}: {tracking.Status} - {tracking.Comment}");
+                            if (tracking.FailureReason != null)
+                            {
+                                Console.WriteLine($"{tracking.Timestamp} {tracking.Status} - {tracking.FailureReason}");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"{tracking.Timestamp} {tracking.Status}");
+                            } 
                         }
                     }
                 }

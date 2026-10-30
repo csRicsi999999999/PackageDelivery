@@ -13,6 +13,6 @@ namespace PackageDelivery.Models
         DeliveryFailed, // Sikertelen kézbesítés
         Delivered, // Kézbesítve
         Returning, // Visszaküldés alatt
-        Returned // Visszaküldve
+        Returned, // Visszaküldve 
     }
 }
