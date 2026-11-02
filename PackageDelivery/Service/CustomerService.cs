@@ -57,14 +57,14 @@ namespace PackageDelivery.Service
             Console.WriteLine("Melyik adatot szeretnéd módosítani?: ");
             Console.WriteLine("1-Név - 2-E-mail cím - 3-Telefonszám");
 
-            string choice = Console.ReadLine() ?? "";
-            string result = "";
+            string? choice = Console.ReadLine();
+            string? result = "";
 
             switch (choice)
             {
                 case "1":
                     Console.Write("Add meg az ügyfél ID-ját: ");
-                    int customerId = int.Parse(Console.ReadLine() ?? "");
+                    int customerId = int.Parse(Console.ReadLine()!);
                     var customer = _db.Customers.Find(customerId);
                     if (customer != null)
                     {

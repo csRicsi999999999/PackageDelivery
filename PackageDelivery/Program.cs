@@ -62,7 +62,7 @@ internal class Program
 
                 case "5":
                     // TODO: Itt hívd meg a csomagkeresésekért felelős saját komponensedet.
-                    Console.WriteLine("Ez a funkció még nincs megvalósítva.");
+                    menu.SearchPackages();
                     break;
 
                 case "6":

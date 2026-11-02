@@ -92,5 +92,58 @@ namespace PackageDelivery.UI
                 }
             }
         }
+
+        public void SearchPackages()
+        {
+            bool exit = false;
+            while (!exit)
+            {
+                Console.Clear();
+                Console.WriteLine("\n CSOMAGOK KERESÉSE ");
+                Console.WriteLine("1. Keresés nyomkövetési azonosító alapján");
+                Console.WriteLine("2. Keresés feladó alapján");
+                Console.WriteLine("3. Keresés címzett alapján");
+                Console.WriteLine("4. Keresés állapot alapján");
+                Console.WriteLine("5. Keresés csomagtípus alapján");
+                Console.WriteLine("6. Keresés feladási időszak alapján");
+                Console.WriteLine("0. Vissza a főmenübe");
+
+                Console.Write("\nVálasztás: ");
+                string? choice = Console.ReadLine();
+
+                switch (choice)
+                { 
+
+                case "1":
+                   _packageService?.SearchByTrackingId();
+                   break;
+
+                case "2":
+                   _packageService?.SearchBySender(_customerService!);
+                   break;   
+
+                case "3":
+                   _packageService?.SearchByRecipient(_customerService!);
+                   break;
+
+                case "4":
+                   break;
+
+                case "5":
+                   break;
+
+                case "6":
+                   break;
+
+                case "0":
+                   exit = true;
+                   break;
+
+                default:
+                    Console.WriteLine("Érvénytelen választás!");
+                    break;
+                }
+            }
+        }
     }
 }

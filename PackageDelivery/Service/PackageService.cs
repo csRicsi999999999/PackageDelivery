@@ -29,6 +29,23 @@ namespace PackageDelivery.Service
             return _db.Packages.ToList();
         }
 
+        public void DisplayText(Package package)
+        {
+            
+            var senders = _db.Customers.Where(s => s.Id == package.SenderId).ToList();
+            var recipient = _db.Customers.Where(r => r.Id == package.RecipientId).ToList();
+            
+            Console.WriteLine($"Csomag: {package.TrackingNumber}");
+            Console.WriteLine($"Feladó: {senders[0].Name}");
+            Console.WriteLine($"Címzett: {recipient[0].Name}");
+            Console.WriteLine($"Tömeg: {package.Weight} kg");
+            Console.WriteLine($"Kézbesítési Cím: {package.PostalCode} {package.City} {package.StreetName} {package.StreetType} {package.HouseNumber}");
+            Console.WriteLine($"Feladás dátuma: {package.CreatedAt}");
+            Console.WriteLine($"Aktuális állapota: {package.Status}");
+            Console.WriteLine("\n");
+
+        }
+
         public void AddNewPackage(CustomerService customerService)
         {
             Console.Clear();
@@ -514,6 +531,119 @@ namespace PackageDelivery.Service
                     }
                 }
             }
+        }
+
+        public void SearchByTrackingId()
+        {
+            Console.WriteLine("Adj meg kérlek egy nyomkövetési azonosítót: ");
+            string? trackingId = Console.ReadLine();
+
+            bool found = false;
+
+            foreach (var item in _db.Packages.
+                Where(p => p.TrackingNumber == trackingId))
+            {
+                DisplayText(item);
+            }
+
+            if (!found)
+            {
+                Console.WriteLine("Nincs találat a megadott nyomkövetési azonosítóval.");
+            }
+
+            Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
+            Console.ReadKey();
+        }
+
+        public void SearchBySender(CustomerService customerService)
+        {
+            var customers = customerService?.GetAllCustomers();
+
+
+            Console.WriteLine("\nElérhető ügyfelek:");
+            for (int i = 0; i < customers?.Count; i++)
+            {
+                Console.WriteLine($"{i + 1}. {customers[i].Name} ({customers[i].Email})");
+            }
+
+            Console.Write("\nAdd meg a feladó sorszámát: ");
+            if (!int.TryParse(Console.ReadLine(), out int senderIndex) || senderIndex < 1 || senderIndex > customers?.Count)
+            {
+                Console.WriteLine("Érvénytelen választás!");
+                Console.ReadKey();
+            }
+
+            var sender = customers?[senderIndex - 1];
+
+            foreach (var item in _db.Packages   
+                .Where(p => p.SenderId == sender!.Id)
+                .OrderByDescending(p => p.CreatedAt))
+            {
+                DisplayText(item);
+            }
+            Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
+            Console.ReadKey();
+
+
+        }
+
+        public void SearchByRecipient(CustomerService customerService)
+        {
+            var customers = customerService?.GetAllCustomers();
+
+
+            Console.WriteLine("\nElérhető ügyfelek:");
+            for (int i = 0; i < customers?.Count; i++)
+            {
+                Console.WriteLine($"{i + 1}. {customers[i].Name} ({customers[i].Email})");
+            }
+
+            Console.Write("\nAdd meg a címzett sorszámát: ");
+            if (!int.TryParse(Console.ReadLine(), out int recipientIndex) || recipientIndex < 1 || recipientIndex > customers?.Count)
+            {
+                Console.WriteLine("Érvénytelen választás!");
+                Console.ReadKey();
+            }
+
+            var recipient = customers?[recipientIndex - 1];
+
+            foreach (var item in _db.Packages
+                .Where(p => p.RecipientId == recipient!.Id)
+                .OrderByDescending(p => p.CreatedAt))
+            {
+                DisplayText(item);
+            }
+            Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
+            Console.ReadKey();
+
+        }
+
+        public void SearchByStatus()
+        {
+
+            /*
+
+            string? choose = Console.ReadLine();
+
+
+            switch(choose)
+               case "1" =>  senders = SearchByRecipient()  break;
+
+                "2 - Átvéve" +
+                "3 - Elosztóközpontban, " +
+                "4 - Kiszállítás alatt " +
+                "5 - Sikertelen kézbesítés      " +
+                "6 - Kézbesítve        " +
+                "7 - Visszaküldés alatt" +
+                "8 - Visszaküldve");
+                
+
+
+
+
+            Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
+            Console.ReadKey();
+            */
         }
     }
 }
