@@ -31,10 +31,10 @@ namespace PackageDelivery.Service
 
         public void DisplayText(Package package)
         {
-            
+
             var senders = _db.Customers.Where(s => s.Id == package.SenderId).ToList();
             var recipient = _db.Customers.Where(r => r.Id == package.RecipientId).ToList();
-            
+
             Console.WriteLine($"Csomag: {package.TrackingNumber}");
             Console.WriteLine($"Feladó: {senders[0].Name}");
             Console.WriteLine($"Címzett: {recipient[0].Name}");
@@ -276,8 +276,17 @@ namespace PackageDelivery.Service
             string? chooseBox = Console.ReadLine();
 
             string? failed = null;
+
+            var currentPackage = _db.Packages.FirstOrDefault(p => p.TrackingNumber == chooseBox);
+
+            if (currentPackage == null)
+            {
+                Console.WriteLine("Nincs ilyen csomag.");
+                return;
+            }
+
             var count = _db.Trackings
-                            .Where(p => p.PackageId == package!.Id)
+                            .Where(p => p.PackageId == currentPackage!.Id)
                             .Count(t => t.Status == PackageStatus.DeliveryFailed);
 
             foreach (var item in _db.Packages)
@@ -362,25 +371,25 @@ namespace PackageDelivery.Service
                                     break;
 
                                 case "2":
-                                        item.Status = PackageStatus.DeliveryFailed;
-                                        Console.WriteLine("A csomag kézbesítése sikertelen volt, oka:");
-                                        Console.WriteLine("1 - A címzett nem volt elérhető");
-                                        Console.WriteLine("2 - A cím nem volt megtalálható");
-                                        Console.WriteLine("3 - A címzett megtagadta az átvételt");
-                                        int reason = int.Parse(Console.ReadLine()!);
-                                        if (reason == 1)
-                                        {
-                                            failed = "RecipientNotAvailable";
-                                        }
-                                        if (reason == 2)
-                                        {
-                                            failed = "AddressNotFound";
-                                        }
-                                        if (reason == 3)
-                                        {
-                                            failed = "RecipientRefused";
-                                        }
-                                        break;
+                                    item.Status = PackageStatus.DeliveryFailed;
+                                    Console.WriteLine("A csomag kézbesítése sikertelen volt, oka:");
+                                    Console.WriteLine("1 - A címzett nem volt elérhető");
+                                    Console.WriteLine("2 - A cím nem volt megtalálható");
+                                    Console.WriteLine("3 - A címzett megtagadta az átvételt");
+                                    int reason = int.Parse(Console.ReadLine()!);
+                                    if (reason == 1)
+                                    {
+                                        failed = "RecipientNotAvailable";
+                                    }
+                                    if (reason == 2)
+                                    {
+                                        failed = "AddressNotFound";
+                                    }
+                                    if (reason == 3)
+                                    {
+                                        failed = "RecipientRefused";
+                                    }
+                                    break;
                                 default:
                                     Console.WriteLine("Érvénytelen választás!");
                                     break;
@@ -391,7 +400,7 @@ namespace PackageDelivery.Service
 
                         else if (item.Status == PackageStatus.DeliveryFailed)
                         {
-                            if(count <= 2)
+                            if (count <= 2)
                             {
                                 Console.WriteLine("Mi történt a csomaggal? (1 - Kiszállítás megkezdése, 2 - Visszaküldés)");
 
@@ -399,18 +408,18 @@ namespace PackageDelivery.Service
                                 switch (choice)
                                 {
                                     case "1":
-                                    item.Status = PackageStatus.OutForDelivery;
-                                    Console.WriteLine("A csomag kiszállításra kijelölve.");
-                                    break;
+                                        item.Status = PackageStatus.OutForDelivery;
+                                        Console.WriteLine("A csomag kiszállításra kijelölve.");
+                                        break;
 
-                                case "2":
-                                    item.Status = PackageStatus.Returning;
-                                    Console.WriteLine("A csomag visszaküldésre kerül.");
-                                    break;
+                                    case "2":
+                                        item.Status = PackageStatus.Returning;
+                                        Console.WriteLine("A csomag visszaküldésre kerül.");
+                                        break;
 
-                                default:
-                                    Console.WriteLine("Érvénytelen választás!");
-                                    break;
+                                    default:
+                                        Console.WriteLine("Érvénytelen választás!");
+                                        break;
                                 }
                             }
                             else
@@ -466,9 +475,9 @@ namespace PackageDelivery.Service
                     }
                 }
             }
-            
+
         }
-        
+
 
         public void TrackingHistory()
         {
@@ -526,124 +535,11 @@ namespace PackageDelivery.Service
                             else
                             {
                                 Console.WriteLine($"{tracking.Timestamp} {tracking.Status}");
-                            } 
+                            }
                         }
                     }
                 }
             }
-        }
-
-        public void SearchByTrackingId()
-        {
-            Console.WriteLine("Adj meg kérlek egy nyomkövetési azonosítót: ");
-            string? trackingId = Console.ReadLine();
-
-            bool found = false;
-
-            foreach (var item in _db.Packages.
-                Where(p => p.TrackingNumber == trackingId))
-            {
-                DisplayText(item);
-            }
-
-            if (!found)
-            {
-                Console.WriteLine("Nincs találat a megadott nyomkövetési azonosítóval.");
-            }
-
-            Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
-            Console.ReadKey();
-        }
-
-        public void SearchBySender(CustomerService customerService)
-        {
-            var customers = customerService?.GetAllCustomers();
-
-
-            Console.WriteLine("\nElérhető ügyfelek:");
-            for (int i = 0; i < customers?.Count; i++)
-            {
-                Console.WriteLine($"{i + 1}. {customers[i].Name} ({customers[i].Email})");
-            }
-
-            Console.Write("\nAdd meg a feladó sorszámát: ");
-            if (!int.TryParse(Console.ReadLine(), out int senderIndex) || senderIndex < 1 || senderIndex > customers?.Count)
-            {
-                Console.WriteLine("Érvénytelen választás!");
-                Console.ReadKey();
-            }
-
-            var sender = customers?[senderIndex - 1];
-
-            foreach (var item in _db.Packages   
-                .Where(p => p.SenderId == sender!.Id)
-                .OrderByDescending(p => p.CreatedAt))
-            {
-                DisplayText(item);
-            }
-            Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
-            Console.ReadKey();
-
-
-        }
-
-        public void SearchByRecipient(CustomerService customerService)
-        {
-            var customers = customerService?.GetAllCustomers();
-
-
-            Console.WriteLine("\nElérhető ügyfelek:");
-            for (int i = 0; i < customers?.Count; i++)
-            {
-                Console.WriteLine($"{i + 1}. {customers[i].Name} ({customers[i].Email})");
-            }
-
-            Console.Write("\nAdd meg a címzett sorszámát: ");
-            if (!int.TryParse(Console.ReadLine(), out int recipientIndex) || recipientIndex < 1 || recipientIndex > customers?.Count)
-            {
-                Console.WriteLine("Érvénytelen választás!");
-                Console.ReadKey();
-            }
-
-            var recipient = customers?[recipientIndex - 1];
-
-            foreach (var item in _db.Packages
-                .Where(p => p.RecipientId == recipient!.Id)
-                .OrderByDescending(p => p.CreatedAt))
-            {
-                DisplayText(item);
-            }
-            Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
-            Console.ReadKey();
-
-        }
-
-        public void SearchByStatus()
-        {
-
-            /*
-
-            string? choose = Console.ReadLine();
-
-
-            switch(choose)
-               case "1" =>  senders = SearchByRecipient()  break;
-
-                "2 - Átvéve" +
-                "3 - Elosztóközpontban, " +
-                "4 - Kiszállítás alatt " +
-                "5 - Sikertelen kézbesítés      " +
-                "6 - Kézbesítve        " +
-                "7 - Visszaküldés alatt" +
-                "8 - Visszaküldve");
-                
-
-
-
-
-            Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
-            Console.ReadKey();
-            */
         }
     }
 }

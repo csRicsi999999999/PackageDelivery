@@ -17,8 +17,10 @@ internal class Program
 
         var customerService = new CustomerService(db);
         var packageService = new PackageService(db);
+        var searchService = new SearchService(db);
+        var reportService = new ReportService(db);
 
-        var menu = new ConsoleMenu(customerService, packageService);
+        var menu = new ConsoleMenu(customerService, packageService, searchService, reportService);
         
 
         while (running)
@@ -67,7 +69,7 @@ internal class Program
 
                 case "6":
                     // TODO: Itt hívd meg a riportok elkészítéséért felelős saját komponensedet.
-                    Console.WriteLine("Ez a funkció még nincs megvalósítva.");
+                    menu.Reports();
                     break;
 
                 case "0":

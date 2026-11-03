@@ -12,12 +12,15 @@ namespace PackageDelivery.UI
     public class ConsoleMenu
     {
         private readonly CustomerService? _customerService;
-
         private readonly PackageService? _packageService;
-        public ConsoleMenu(CustomerService? customerService, PackageService? packageService)
+        private readonly SearchService? _searchService;
+        private readonly ReportService? _reportService;
+        public ConsoleMenu(CustomerService? customerService, PackageService? packageService, SearchService searchService, ReportService reportService)
         {
             _customerService = customerService;
             _packageService = packageService;
+            _searchService = searchService;
+            _reportService = reportService;
         }
 
         public void HandleCustomerMenu()
@@ -42,13 +45,13 @@ namespace PackageDelivery.UI
                 {
                     case "1":
                         Console.Write("Add meg az ügyfél nevét: ");
-                        string name = Console.ReadLine() ?? "";
+                        string name = Console.ReadLine()!;
 
                         Console.Write("Add meg az e-mail címét: ");
-                        string email = Console.ReadLine() ?? "";
+                        string email = Console.ReadLine()!;
 
                         Console.Write("Add meg a telefonszámát: ");
-                        string phoneNumber = Console.ReadLine() ?? "";
+                        string phoneNumber = Console.ReadLine()!;
 
                         string result = _customerService?.AddCustomer(name, email, phoneNumber) ?? "";
 
@@ -115,24 +118,27 @@ namespace PackageDelivery.UI
                 { 
 
                 case "1":
-                   _packageService?.SearchByTrackingId();
+                   _searchService?.SearchByTrackingId();
                    break;
 
                 case "2":
-                   _packageService?.SearchBySender(_customerService!);
+                   _searchService?.SearchBySender(_customerService!);
                    break;   
 
                 case "3":
-                   _packageService?.SearchByRecipient(_customerService!);
+                   _searchService?.SearchByRecipient(_customerService!);
                    break;
 
                 case "4":
+                   _searchService?.SearchByStatus();
                    break;
 
                 case "5":
+                   _searchService?.SearchByPackageType();
                    break;
 
                 case "6":
+                   _searchService?.SearchByPostingPeriod();
                    break;
 
                 case "0":
@@ -142,6 +148,62 @@ namespace PackageDelivery.UI
                 default:
                     Console.WriteLine("Érvénytelen választás!");
                     break;
+                }
+            }
+        }
+
+        public void Reports()
+        {
+            bool exit = false;
+            while (!exit)
+            {
+                Console.Clear();
+                Console.WriteLine("\n RIPORTOK ÉS KIMUTATÁSOK ");
+                Console.WriteLine("1. Csomagok száma állapotonként");
+                Console.WriteLine("2. Csomagtípus-statisztika");
+                Console.WriteLine("3. Öt legaktívabb feladó");
+                Console.WriteLine("4. Sikertelen kézbesítések okai");
+                Console.WriteLine("5. Időszaki feladási kimutatás");
+                Console.WriteLine("6. Speciális kezelést igénylő aktív csomagok");
+                Console.WriteLine("0. Vissza a főmenübe");
+
+                Console.Write("\nVálasztás: ");
+                string? choice = Console.ReadLine();
+
+                switch (choice)
+                {
+
+                    case "1":
+                        _reportService?.NumberOfPackagesByStatus();
+                        break;
+
+                    case "2":
+                        _reportService?.PackageTypeStatistics();
+                        break;
+
+                    case "3":
+                        _reportService?.TopFiveSenders();
+                        break;
+
+                    case "4":
+                        _reportService?.ReasonsForUnsuccessfulDeliveries();
+                        break;
+
+                    case "5":
+                        _reportService?.TimePeriodReport();
+                        break;
+
+                    case "6":
+                        _reportService?.SpecialHandlingPackages();
+                        break;
+
+                    case "0":
+                        exit = true;
+                        break;
+
+                    default:
+                        Console.WriteLine("Érvénytelen választás!");
+                        break;
                 }
             }
         }
