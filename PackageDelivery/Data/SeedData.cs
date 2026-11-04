@@ -13,7 +13,7 @@ namespace PackageDelivery.Data
                     new Customer { Name = "Kovács Anna", Email = "anna@example.test", PhoneNumber = "+361111111" },
                     new Customer { Name = "Nagy Péter", Email = "peter@example.test", PhoneNumber = "+362222222" }
                 );
-                db.SaveChanges(); // El kell menteni, hogy legyenük ID-k a csomagokhoz!
+                db.SaveChanges(); // El kell menteni, hogy legyen ID-k a csomagokhoz!
             }
 
             // 2. Csomagok feltöltése, ha még üres a tábla

@@ -42,7 +42,6 @@ namespace PackageDelivery.Service
         {
             var customers = customerService?.GetAllCustomers();
 
-
             Console.WriteLine("\nElérhető ügyfelek:");
             for (int i = 0; i < customers?.Count; i++)
             {

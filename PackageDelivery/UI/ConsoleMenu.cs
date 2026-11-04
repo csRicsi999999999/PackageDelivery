@@ -12,15 +12,15 @@ namespace PackageDelivery.UI
     public class ConsoleMenu
     {
         private readonly CustomerService? _customerService;
-        private readonly PackageService? _packageService;
         private readonly SearchService? _searchService;
         private readonly ReportService? _reportService;
-        public ConsoleMenu(CustomerService? customerService, PackageService? packageService, SearchService searchService, ReportService reportService)
+        private readonly PackageService? _packageService;
+        public ConsoleMenu(CustomerService? customerService, SearchService searchService, ReportService reportService, PackageService? packageService)
         {
             _customerService = customerService;
-            _packageService = packageService;
             _searchService = searchService;
             _reportService = reportService;
+            _packageService = packageService;
         }
 
         public void HandleCustomerMenu()
@@ -44,19 +44,7 @@ namespace PackageDelivery.UI
                 switch (choice)
                 {
                     case "1":
-                        Console.Write("Add meg az ügyfél nevét: ");
-                        string name = Console.ReadLine()!;
-
-                        Console.Write("Add meg az e-mail címét: ");
-                        string email = Console.ReadLine()!;
-
-                        Console.Write("Add meg a telefonszámát: ");
-                        string phoneNumber = Console.ReadLine()!;
-
-                        string result = _customerService?.AddCustomer(name, email, phoneNumber) ?? "";
-
-                        Console.WriteLine();
-                        Console.WriteLine(result);
+                        _customerService?.AddCustomer();
                         break;
 
                     case "2":
@@ -72,11 +60,11 @@ namespace PackageDelivery.UI
                         break;
 
                     case "5":
-                        Console.WriteLine("Ez a funkció még nincs megvalósítva.");
+                        _customerService?.ShowCustomerSender();
                         break;
 
                     case "6":
-                        Console.WriteLine("Ez a funkció még nincs megvalósítva.");
+                        _customerService?.ShowCustomerRecipient();
                         break;
 
                     case "0":

@@ -14,9 +14,6 @@ namespace PackageDelivery.Service
         {
             _db = db;
         }
-        Package? package;
-        PackageService? packageservice;
-        Customer? customer;
 
         public void NumberOfPackagesByStatus()
         {
