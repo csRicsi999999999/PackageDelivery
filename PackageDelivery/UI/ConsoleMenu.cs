@@ -25,11 +25,12 @@ namespace PackageDelivery.UI
 
         public void HandleCustomerMenu()
         {
-            bool exit = false;
-            while (!exit)
+            bool running = true;
+
+            while (running)
             {
-                Console.Clear();
-                Console.WriteLine("\n ÜGYFELEK KEZELÉSE ");
+                Console.WriteLine("\n Ügyfelek kezelése ");
+                Console.WriteLine();
                 Console.WriteLine("1. Új ügyfél rögzítése");
                 Console.WriteLine("2. Összes ügyfél listázása");
                 Console.WriteLine("3. Egy ügyfél részletes adatainak megjelenítése");
@@ -68,26 +69,22 @@ namespace PackageDelivery.UI
                         break;
 
                     case "0":
-                        exit = true;
+                        running = false;
                         break;
 
                     default:
                         Console.WriteLine("Érvénytelen választás!");
+                        Console.WriteLine("Add be újból a számot");
                         break;
-                }
-
-                if (!exit)
-                {
-                    Console.WriteLine("\nNyomj meg egy gombot a folytatáshoz...");
-                    Console.ReadKey();
                 }
             }
         }
 
         public void SearchPackages()
         {
-            bool exit = false;
-            while (!exit)
+            bool running = true;
+
+            while (running)
             {
                 Console.Clear();
                 Console.WriteLine("\n CSOMAGOK KERESÉSE ");
@@ -130,11 +127,12 @@ namespace PackageDelivery.UI
                    break;
 
                 case "0":
-                   exit = true;
+                   running = false;
                    break;
 
                 default:
                     Console.WriteLine("Érvénytelen választás!");
+                    Console.WriteLine("Add be újból a számot");
                     break;
                 }
             }
@@ -142,8 +140,9 @@ namespace PackageDelivery.UI
 
         public void Reports()
         {
-            bool exit = false;
-            while (!exit)
+            bool running = true;
+
+            while (running)
             {
                 Console.Clear();
                 Console.WriteLine("\n RIPORTOK ÉS KIMUTATÁSOK ");
@@ -186,11 +185,12 @@ namespace PackageDelivery.UI
                         break;
 
                     case "0":
-                        exit = true;
+                        running = false;
                         break;
 
                     default:
                         Console.WriteLine("Érvénytelen választás!");
+                        Console.WriteLine("Add be újból a számot");
                         break;
                 }
             }

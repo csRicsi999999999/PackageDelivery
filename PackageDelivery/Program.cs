@@ -21,7 +21,7 @@ internal class Program
         var reportService = new ReportService(db);
 
         var menu = new ConsoleMenu(customerService, searchService, reportService, packageService);
-        
+
 
         while (running)
         {

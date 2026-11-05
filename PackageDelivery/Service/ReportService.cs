@@ -1,4 +1,5 @@
-﻿using PackageDelivery.Data;
+﻿using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using PackageDelivery.Data;
 using PackageDelivery.Models;
 using System;
 using System.Collections.Generic;
@@ -31,8 +32,16 @@ namespace PackageDelivery.Service
 
         public void PackageTypeStatistics()
         {
+
+            Console.WriteLine("\n--- Csomag adatok ---");
+            Console.WriteLine("1 --> Normál csomag");
+            Console.WriteLine("2 --> Törékeny csomag");
+            Console.WriteLine("3 --> Hűtést igénylő csomag");
+
+            Console.WriteLine("Add meg azt a csomagtípust amit ki szeretném listázni: ");
+            int statusText = int.Parse(Console.ReadLine()!);
+
             foreach (var item in _db.Packages
-                .Where(p => p.BoxType >= 1)
                 .OrderByDescending(p => p.BoxType)
                 .GroupBy(p => p.BoxType))
             {
@@ -40,19 +49,20 @@ namespace PackageDelivery.Service
                 item.Sum(p => p.Weight);
                 item.Average(p => p.Weight);
 
-                string statusText = item.Key 
-                    switch
-                {
-                    1 => "Normál csomag",
-                    2 => "Törékeny csomag",
-                    3 => "Hűtést igénylő csomag",
-                    _ => "Ismeretlen"
+                    Package.Type type = statusText switch
+                    {
+                    1 => Package.Type.Normal,
+                    2 => Package.Type.Fragile,
+                    3 => Package.Type.Refrigerated,
+                    _ => throw new ArgumentException("Érvénytelen csomag típus! 1, 2 vagy 3 adható meg.")
                 };
 
-                Console.WriteLine($"\nTípus: {statusText} - {item.Count()} db ilyen típusú csomag van");
+                Console.WriteLine($"\nTípus: {type} - {item.Count()} db ilyen típusú csomag van");
                 Console.WriteLine($"Összes súly: {item.Sum(p => p.Weight)} kg");
                 Console.WriteLine($"Átlagos súly: {item.Average(p => p.Weight)} kg");
+                
             }
+
             Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
             Console.ReadKey();
         }
@@ -128,7 +138,7 @@ namespace PackageDelivery.Service
         public void SpecialHandlingPackages()
         {
             var packages = _db.Packages
-                .Where(p => p.BoxType == 2 || p.BoxType == 3)
+                .Where(p => p.BoxType == Package.Type.Fragile || p.BoxType == Package.Type.Refrigerated)
                 .Where(p => p.Status != PackageStatus.Delivered && p.Status != PackageStatus.Returned)
                 .OrderBy(p => p.CreatedAt)
                 .ToList();
@@ -143,14 +153,14 @@ namespace PackageDelivery.Service
 
             foreach (var item in packages)
             {
-                if (item.BoxType == 2)
+                if (item.BoxType == Package.Type.Fragile)
                 {
                     Console.WriteLine("Tipus: Törékeny csomag");
                     Console.WriteLine("Törékenységi szint: " + ((FragilePackage)item).FragileLevel);
                     Console.WriteLine("Kezelési utasítások: " + ((FragilePackage)item).HandlingInstructions);
                     Console.WriteLine("\n");
                 }
-                else if (item.BoxType == 3)
+                else if (item.BoxType == Package.Type.Refrigerated)
                 {
                     Console.WriteLine("Tipus: Hűtést igénylő csomag");
                     Console.WriteLine($"Hőmérséklet: {((RefrigeratedPackage)item).MinTemperature} °C és {((RefrigeratedPackage)item).MaxTemperature} °C");

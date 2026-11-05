@@ -206,7 +206,7 @@ namespace PackageDelivery.Service
             {
                 case "1":
                     foreach (var item in _db.Packages
-                         .Where(p => p.BoxType == 1))
+                         .Where(p => p.BoxType == Package.Type.Normal))
                     {
                         _packageService.DisplayText(item);
                     }
@@ -214,7 +214,7 @@ namespace PackageDelivery.Service
 
                 case "2":
                     foreach (var item in _db.Packages
-                    .Where(p => p.BoxType == 2))
+                    .Where(p => p.BoxType == Package.Type.Fragile))
                     {
                         _packageService.DisplayText(item);
                     }
@@ -222,7 +222,7 @@ namespace PackageDelivery.Service
 
                 case "3":
                     foreach (var item in _db.Packages
-                    .Where(p => p.BoxType == 3))
+                    .Where(p => p.BoxType == Package.Type.Refrigerated))
                     {
                         _packageService.DisplayText(item);
                     }

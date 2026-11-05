@@ -23,7 +23,10 @@ namespace PackageDelivery.Models
         public string? HouseNumber { get; set; }
         public string? OtherInfo { get; set; }
         public PackageStatus Status { get; set; } = PackageStatus.Registered;
-        public int BoxType { get; set;} 
+        public enum Type {Normal, Fragile, Refrigerated}
+        public Type BoxType { get; set;} 
+
+     
 
     }
 }
