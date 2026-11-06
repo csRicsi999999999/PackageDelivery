@@ -114,7 +114,9 @@ namespace PackageDelivery.Service
         public void ShowCustomer()
         {
             foreach (Customer item in _db.Customers)
+            { 
                 Console.WriteLine($"{item.Id}: {item.Name} - {item.Email} - {item.PhoneNumber}");
+            }
         }
         public void ShowCustomerDetails()
         {

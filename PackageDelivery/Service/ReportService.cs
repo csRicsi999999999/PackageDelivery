@@ -36,12 +36,7 @@ namespace PackageDelivery.Service
             foreach (var item in _db.Packages
                         .OrderByDescending(p => p.BoxType)
                         .GroupBy(p => p.BoxType))
-            {
-                item.Count();
-                item.Sum(p => p.Weight);
-                item.Average(p => p.Weight);
-
-                
+            { 
                 Console.WriteLine($"\nTípus: {item.Key} - {item.Count()} db ilyen típusú csomag van");
                 Console.WriteLine($"Összes súly: {item.Sum(p => p.Weight):F2} kg");
                 Console.WriteLine($"Átlagos súly: {item.Average(p => p.Weight):F2} kg");
