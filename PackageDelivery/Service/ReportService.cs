@@ -3,6 +3,7 @@ using PackageDelivery.Data;
 using PackageDelivery.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 
@@ -15,7 +16,6 @@ namespace PackageDelivery.Service
         {
             _db = db;
         }
-
         public void NumberOfPackagesByStatus()
         {
             foreach (var item in _db.Packages
@@ -33,37 +33,21 @@ namespace PackageDelivery.Service
         public void PackageTypeStatistics()
         {
 
-            Console.WriteLine("\n--- Csomag adatok ---");
-            Console.WriteLine("1 --> Normál csomag");
-            Console.WriteLine("2 --> Törékeny csomag");
-            Console.WriteLine("3 --> Hűtést igénylő csomag");
-
-            Console.WriteLine("Add meg azt a csomagtípust amit ki szeretném listázni: ");
-            int statusText = int.Parse(Console.ReadLine()!);
-
             foreach (var item in _db.Packages
-                .OrderByDescending(p => p.BoxType)
-                .GroupBy(p => p.BoxType))
+                        .OrderByDescending(p => p.BoxType)
+                        .GroupBy(p => p.BoxType))
             {
                 item.Count();
                 item.Sum(p => p.Weight);
                 item.Average(p => p.Weight);
 
-                    Package.Type type = statusText switch
-                    {
-                    1 => Package.Type.Normal,
-                    2 => Package.Type.Fragile,
-                    3 => Package.Type.Refrigerated,
-                    _ => throw new ArgumentException("Érvénytelen csomag típus! 1, 2 vagy 3 adható meg.")
-                };
-
-                Console.WriteLine($"\nTípus: {type} - {item.Count()} db ilyen típusú csomag van");
-                Console.WriteLine($"Összes súly: {item.Sum(p => p.Weight)} kg");
-                Console.WriteLine($"Átlagos súly: {item.Average(p => p.Weight)} kg");
                 
+                Console.WriteLine($"\nTípus: {item.Key} - {item.Count()} db ilyen típusú csomag van");
+                Console.WriteLine($"Összes súly: {item.Sum(p => p.Weight):F2} kg");
+                Console.WriteLine($"Átlagos súly: {item.Average(p => p.Weight):F2} kg");
             }
 
-            Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
+            Console.WriteLine("Nyomj egy ENTERT a kilépéshez");
             Console.ReadKey();
         }
 
@@ -107,11 +91,41 @@ namespace PackageDelivery.Service
 
         public void TimePeriodReport()
         {
-            Console.WriteLine("Add meg a kezdő dátumot: ");
-            DateTime startDate = DateTime.Parse(Console.ReadLine()!);
+            DateTime startDate = DateTime.MinValue;
+            bool isValidStartDate = false;
 
-            Console.WriteLine("Add meg a záró dátumot: ");
-            DateTime endDate = DateTime.Parse(Console.ReadLine()!);
+            while (!isValidStartDate)
+            {
+                Console.WriteLine("Add meg a kezdő dátumot (YYYY-MM-DD): ");
+                string input = Console.ReadLine()!;
+
+                if (DateTime.TryParse(input, out startDate))
+                {
+                     isValidStartDate = true;
+                }
+                else
+                {
+                    Console.WriteLine("Hibás dátumformátum! Kérlek add meg újra.");
+                }
+            }
+
+            DateTime endDate = DateTime.MaxValue;
+            bool isValidEndDate = false;
+
+            while (!isValidEndDate)
+            {
+                Console.WriteLine("Add meg a záró dátumot (YYYY-MM-DD): ");
+                string input = Console.ReadLine()!;
+
+                if (DateTime.TryParse(input, out endDate))
+                {
+                    isValidEndDate = true;
+                }
+                else
+                {
+                    Console.WriteLine("Hibás dátumformátum! Kérlek add meg újra.");
+                }
+            }
 
             endDate = endDate.Date.AddDays(1).AddTicks(-1);
 
@@ -155,14 +169,14 @@ namespace PackageDelivery.Service
             {
                 if (item.BoxType == Package.Type.Fragile)
                 {
-                    Console.WriteLine("Tipus: Törékeny csomag");
+                    Console.WriteLine($"Tipus: {item.BoxType}");
                     Console.WriteLine("Törékenységi szint: " + ((FragilePackage)item).FragileLevel);
                     Console.WriteLine("Kezelési utasítások: " + ((FragilePackage)item).HandlingInstructions);
                     Console.WriteLine("\n");
                 }
                 else if (item.BoxType == Package.Type.Refrigerated)
                 {
-                    Console.WriteLine("Tipus: Hűtést igénylő csomag");
+                    Console.WriteLine($"Tipus: {item.BoxType}");
                     Console.WriteLine($"Hőmérséklet: {((RefrigeratedPackage)item).MinTemperature} °C és {((RefrigeratedPackage)item).MaxTemperature} °C");
                 }
             }

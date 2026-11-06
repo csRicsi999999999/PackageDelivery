@@ -671,10 +671,7 @@ namespace PackageDelivery.Service
 
             string? failed = null;
 
-
-
-
-            string choice = null;
+            string? choice = null;
 
             if (currentPackage!.Status == PackageStatus.Returned)
             {
@@ -692,7 +689,7 @@ namespace PackageDelivery.Service
                             .Count(t => t.Status == PackageStatus.DeliveryFailed);
 
             Console.WriteLine($"Jelenlegi állapot: {currentPackage.Status}");
-            string result = "";
+            
 
             if (currentPackage!.Status == PackageStatus.Registered)
             {
