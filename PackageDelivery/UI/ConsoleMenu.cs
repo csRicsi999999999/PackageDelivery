@@ -14,13 +14,11 @@ namespace PackageDelivery.UI
         private readonly CustomerService? _customerService;
         private readonly SearchService? _searchService;
         private readonly ReportService? _reportService;
-        private readonly PackageService? _packageService;
-        public ConsoleMenu(CustomerService? customerService, SearchService searchService, ReportService reportService, PackageService? packageService)
+        public ConsoleMenu(CustomerService? customerService, SearchService searchService, ReportService reportService)
         {
             _customerService = customerService;
             _searchService = searchService;
             _reportService = reportService;
-            _packageService = packageService;
         }
 
         public void HandleCustomerMenu()

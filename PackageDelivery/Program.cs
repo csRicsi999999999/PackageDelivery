@@ -20,7 +20,7 @@ internal class Program
         var searchService = new SearchService(db);
         var reportService = new ReportService(db);
 
-        var menu = new ConsoleMenu(customerService, searchService, reportService, packageService);
+        var menu = new ConsoleMenu(customerService, searchService, reportService);
 
 
         while (running)
