@@ -113,7 +113,7 @@ namespace PackageDelivery.Service
             Console.Clear();
             Console.WriteLine("ÚJ CSOMAG FELADÁSA");
 
-            var customers = customerService?.GetAllCustomers();
+            var customers = customerService.GetAllCustomers();
 
             if (customers?.Count < 2)
             {
@@ -123,11 +123,13 @@ namespace PackageDelivery.Service
                 return;
             }
 
-            Console.WriteLine("\nElérhető ügyfelek:");
-            for (int i = 0; i < customers?.Count; i++)
+            customers = customerService.GetAllCustomers();
+            Console.WriteLine("Ügyfelek listája: ");
+            foreach (var c in customers)
             {
-                Console.WriteLine($"{i + 1}. {customers[i].Name} ({customers[i].Email})");
+                Console.WriteLine($"{c.Id}: {c.Name}");
             }
+
 
             Console.Write("\nAdd meg a feladó sorszámát: ");
 

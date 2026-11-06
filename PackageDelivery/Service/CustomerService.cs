@@ -2,8 +2,9 @@
 using PackageDelivery.Models;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Linq;
+using System.Text;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PackageDelivery.Service
 {
@@ -16,7 +17,7 @@ namespace PackageDelivery.Service
             _db = db;
             _packageService = new PackageService(_db);
         }
-        
+        bool isValid = false;
         public List<Customer> GetAllCustomers()
         {
             return _db.Customers.ToList();
@@ -24,47 +25,85 @@ namespace PackageDelivery.Service
         public void AddCustomer()
         {
             Console.WriteLine("Add meg az ügyfél nevét: ");
-            string name = Console.ReadLine()!;
+            string? name = null;
 
-            while (string.IsNullOrWhiteSpace(name))
+            while (!isValid)
             {
-                Console.WriteLine("Az ügyfél neve kötelező.");
-                Console.WriteLine("\nAdd meg az ügyfél nevét újra: ");
                 name = Console.ReadLine()!;
+                try
+                {
+                    if (int.TryParse(name, out _))
+                    {
+                        throw new ArgumentException("Csak betűt adhatsz meg");
+                    }
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        throw new ArgumentException("Az ügyfél neve kötelező.");
+                    }
+                    isValid = true;
+                }
+                catch (ArgumentException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("\nAdd meg az ügyfél nevét újra: ");
+                }
             }
 
             Console.WriteLine("Add meg az e-mail címét: ");
-            string email = Console.ReadLine()!;
+            string? email = null;
 
-            while (string.IsNullOrWhiteSpace(email))
-            {
-                Console.WriteLine("Az ügyfél e-mail címe kötelező.");
-                Console.WriteLine("\nAdd meg az e-mail címét újra: ");
-                email = Console.ReadLine()!;
-            }
+            isValid = false;
 
-            if (email.First() == '@' || email.Last() == '@' || !email.Contains('@'))
+            while (!isValid)
             {
-                Console.WriteLine("Érvénytelen e-mail cím.");
-                Console.WriteLine("\nAdd meg az e-mail címét újra: ");
                 email = Console.ReadLine()!;
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(email))
+                    {
+                        throw new ArgumentException("Az ügyfél e-mail címe kötelező.");
+                    }
+                    if (!email.Contains('@') || email.First() == '@' || email.Last() == '@')
+                    {
+                        throw new ArgumentException("Érvénytelen e-mail cím.");
+                    }
+                    isValid = true;
+                }
+                catch (ArgumentException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("\nAdd meg az e-mail címét újra: ");
+                }
             }
 
             Console.WriteLine("Add meg a telefonszámát: ");
-            string phoneNumber = Console.ReadLine()!;
+            string? phoneNumber = null;
 
-            while (string.IsNullOrWhiteSpace(phoneNumber))
+            isValid = false;
+
+            while (!isValid)
             {
-                Console.WriteLine("Az ügyfél telefonszáma kötelező.");
-                Console.WriteLine("\nAdd meg a telefonszámát újra: ");
                 phoneNumber = Console.ReadLine()!;
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(phoneNumber))
+                    {
+                        throw new ArgumentException("Az ügyfél telefonszáma kötelező.");
+                    }
+                    isValid = true;
+                }
+                catch (ArgumentException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("\nAdd meg a telefonszámát újra: ");
+                }
             }
              
             _db.Customers.Add(new Customer
             {
-                Name = name.Trim(),
-                Email = email.Trim(),
-                PhoneNumber = phoneNumber.Trim()
+                Name = name!.Trim(),
+                Email = email!.Trim(),
+                PhoneNumber = phoneNumber!.Trim()
             });
             _db.SaveChanges();
 
@@ -79,129 +118,176 @@ namespace PackageDelivery.Service
         }
         public void ShowCustomerDetails()
         {
+            var customers = GetAllCustomers();
             Console.WriteLine("Ügyfelek listája: ");
-            for (int i = 0; i < _db.Customers.Count(); i++)
+            foreach (var c in customers)
             {
-                Console.WriteLine(GetAllCustomers()[i].Id + ": " + GetAllCustomers()[i].Name);
+                Console.WriteLine($"{c.Id}: {c.Name}");
             }
 
             Console.WriteLine("Add meg az ügyfél ID-ját: ");
-            string customerId = Console.ReadLine()!;
 
-            var customer = _db.Customers.Find(int.Parse(customerId));
+            int customerId = 0;
+            isValid = false;
 
-            if (customer != null)
+            while (!isValid)
             {
-                Console.WriteLine($"{customer.Id}: {customer.Name} - {customer.Email} - {customer.PhoneNumber}");
+                try
+                {
+                    if (!int.TryParse(Console.ReadLine(), out customerId))
+                    {
+                        throw new ArgumentException("Számot adj meg");
+                    }
+                    if (customerId < 1 || customerId > _db.Customers.Count())
+                    {
+                        throw new ArgumentException("Érvénytelen választás");
+                    }
+                    isValid = true;
+                }
+                catch (ArgumentException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("\nAdd meg az ügyfél ID-ját újra: ");
+                }
             }
-            else
+
+            foreach(var item in _db.Customers.Where(c => c.Id == customerId))
             {
-                Console.WriteLine("Az ügyfél nem található.");
+                Console.WriteLine($"\nÜgyfél neve: {item.Name}");
+                Console.WriteLine($"E-mail cím: {item.Email}");
+                Console.WriteLine($"Telefonszám: {item.PhoneNumber}");
             }
+
+            Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
+            Console.ReadKey();
+
         }
         public void UpdateCustomerData()
         {
-            Console.WriteLine("Melyik adatot szeretnéd módosítani?: ");
-            Console.WriteLine("1-Név - 2-E-mail cím - 3-Telefonszám");
 
-            string? choice = Console.ReadLine();
+            string? choice = null;
             string? result = "";
+            isValid = false;
+
+            while (!isValid)
+            {
+                try
+                {
+                    Console.WriteLine("Melyik adatot szeretnéd módosítani?: ");
+                    Console.WriteLine("1-Név - 2-E-mail cím - 3-Telefonszám");
+                    choice = Console.ReadLine();
+
+                    if (choice != "1" && choice != "2" && choice != "3")
+                    {
+                        throw new ArgumentException("Érvénytelen választás");
+                    }
+                    isValid = true;
+                }
+                catch (ArgumentException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("\nAdd meg a választásod újra: ");
+                    choice = Console.ReadLine();
+                }
+            }
+
+            var customers = GetAllCustomers();
+            Console.WriteLine("Ügyfelek listája: ");
+            foreach (var item in customers)
+            {
+                Console.WriteLine($"{item.Id}: {item.Name}");
+            }
+
+            int customerId = 0;
+            bool isIdValid = false;
+            while (!isIdValid)
+
+
+                while (!isIdValid)
+                {
+                    Console.Write("Add meg az ügyfél ID-ját: ");
+                    if (int.TryParse(Console.ReadLine(), out customerId))
+                    {
+                        isIdValid = true;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Érvénytelen ID! Csak számot adj meg.");
+                    }
+                }
+
+            var customer = _db.Customers.Find(customerId);
+            if (customer == null)
+            {
+                Console.WriteLine("Az ügyfél nem található.");
+                return;
+            }
 
             switch (choice)
             {
                 case "1":
-                    Console.WriteLine("Ügyfelek listája: ");
-                    for (int i = 0; i < _db.Customers.Count(); i++)
-                    {
-                        Console.WriteLine(GetAllCustomers()[i].Id + ": " + GetAllCustomers()[i].Name);
-                    }
-
-                    Console.Write("Add meg az ügyfél ID-ját: ");
-                    int customerId = int.Parse(Console.ReadLine()!);
-                    var customer = _db.Customers.Find(customerId);
-                    if (customer != null)
-                    {
-                        Console.Write("Add meg az új nevet: ");
-                        string newName = Console.ReadLine() ?? "";
-                        customer.Name = newName;
-                        _db.SaveChanges();
-                        result = "Az ügyfél neve frissítve.";
-                    }
-                    else
-                    {
-                        result = "Az ügyfél nem található.";
-                    }
+                    Console.Write("Add meg az új nevet: ");
+                    string newName = Console.ReadLine()!;
+                    customer.Name = newName;
+                    result = "Az ügyfél neve frissítve.";
                     break;
 
                 case "2":
-                    Console.WriteLine("Ügyfelek listája: ");
-                    for (int i = 0; i < _db.Customers.Count(); i++)
-                    {
-                        Console.WriteLine(GetAllCustomers()[i].Id + ": " + GetAllCustomers()[i].Name);
-                    }
-
-                    Console.Write("Add meg az ügyfél ID-ját: ");
-                    int customerId2 = int.Parse(Console.ReadLine() ?? "0");
-                    var customer2 = _db.Customers.Find(customerId2);
-                    if (customer2 != null)
-                    {
-                        Console.Write("Add meg az új e-mail címet: ");
-                        string newEmail = Console.ReadLine() ?? "";
-                        customer2.Email = newEmail;
-                        _db.SaveChanges();
-                        result = "Az ügyfél e-mail címe frissítve.";
-                    }
-                    else
-                    {
-                        result = "Az ügyfél nem található.";
-                    }
+                    Console.Write("Add meg az új e-mail címet: ");
+                    string newEmail = Console.ReadLine()!;
+                    customer.Email = newEmail;
+                    result = "Az ügyfél e-mail címe frissítve.";
                     break;
 
                 case "3":
-                    Console.WriteLine("Ügyfelek listája: ");
-                    for (int i = 0; i < _db.Customers.Count(); i++)
-                    {
-                        Console.WriteLine(GetAllCustomers()[i].Id + ": " + GetAllCustomers()[i].Name);
-                    }
-
-                    Console.Write("Add meg az ügyfél ID-ját: ");
-                    int customerId3 = int.Parse(Console.ReadLine()!);
-                    var customer3 = _db.Customers.Find(customerId3);
-                    if (customer3 != null)
-                    {
-                        Console.Write("Add meg az új telefonszámot: ");
-                        string newPhoneNumber = Console.ReadLine()!;
-                        customer3.PhoneNumber = newPhoneNumber;
-                        _db.SaveChanges();
-                        result = "Az ügyfél telefonszáma frissítve.";
-                    }
-                    else
-                    {
-                        result = "Az ügyfél nem található.";
-                    }
+                    Console.Write("Add meg az új telefonszámot: ");
+                    string newPhoneNumber = Console.ReadLine()!;
+                    customer.PhoneNumber = newPhoneNumber;
+                    result = "Az ügyfél telefonszáma frissítve.";
                     break;
             }
-
+            _db.SaveChanges();
             Console.WriteLine(result);
         }
 
         public void ShowCustomerSender()
         {
-            Console.WriteLine("Ügyfelek listája: ");
-            for (int i = 0; i < _db.Customers.Count(); i++)
-            {
-                Console.WriteLine(GetAllCustomers()[i].Id + ": " + GetAllCustomers()[i].Name);
-            }
+            isValid = false;
 
             var customers = GetAllCustomers();
+            Console.WriteLine("Ügyfelek listája: ");
+            foreach (var item in customers)
+            {
+                Console.WriteLine($"{item.Id}: {item.Name}");
+            }
 
             Console.Write("\nAdd meg az ügyfél ID-ját: ");
-            if (!int.TryParse(Console.ReadLine(), out int senderIndex) || senderIndex < 1 || senderIndex > customers.Count)
+            int senderIndex;
+            Customer? sender = null;
+
+            while (!isValid)
             {
-                Console.WriteLine("Érvénytelen választás!");
-                Console.ReadKey();
+                try
+                {
+                    if (!int.TryParse(Console.ReadLine(), out senderIndex))
+                    {
+                        throw new ArgumentException("Számot adj meg");
+                    }
+                    if (senderIndex < 1 || senderIndex > customers?.Count)
+                    {
+                        throw new ArgumentException("Érvénytelen választás");
+                    }
+
+                    sender = customers?[senderIndex - 1];
+
+                    isValid = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Add meg a számot újból:");
+                }
             }
-            var sender = customers?[senderIndex - 1];
 
             foreach (var item in _db.Packages
                 .Where(p => p.SenderId == sender!.Id)
@@ -216,21 +302,39 @@ namespace PackageDelivery.Service
 
         public void ShowCustomerRecipient()
         {
-            Console.WriteLine("Ügyfelek listája: ");
-            for (int i = 0; i < _db.Customers.Count(); i++)
-            {
-                Console.WriteLine(GetAllCustomers()[i].Id + ": " + GetAllCustomers()[i].Name);
-            }
-
+            
             var customers = GetAllCustomers();
+            Console.WriteLine("Ügyfelek listája: ");
+            foreach (var item in customers)
 
             Console.Write("\nAdd meg az ügyfél ID-ját: ");
-            if (!int.TryParse(Console.ReadLine(), out int recipientIndex) || recipientIndex < 1 || recipientIndex > customers.Count)
+            int recipientIndex;
+            Customer? recipient = null;
+            isValid = false;
+
+            while (!isValid)
             {
-                Console.WriteLine("Érvénytelen választás!");
-                Console.ReadKey();
+                try
+                {
+                    if (!int.TryParse(Console.ReadLine(), out recipientIndex))
+                    {
+                        throw new ArgumentException("Számot adj meg");
+                    }
+                    if (recipientIndex < 1 || recipientIndex > customers?.Count)
+                    {
+                        throw new ArgumentException("Érvénytelen választás");
+                    }
+
+                    recipient = customers?[recipientIndex - 1];
+
+                    isValid = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Add meg a számot újból:");
+                }
             }
-            var recipient = customers?[recipientIndex - 1];
 
             foreach (var item in _db.Packages
                 .Where(p => p.RecipientId == recipient!.Id)

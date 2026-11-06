@@ -76,6 +76,7 @@ namespace PackageDelivery.Service
 
             int senderIndex;
             Customer? sender = null;
+            isValid = false;
 
             while (!isValid)
                 try
