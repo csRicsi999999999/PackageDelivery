@@ -11,19 +11,81 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml.Linq;
 using System.Xml.Serialization;
+using static PackageDelivery.Models.FragilePackage;
 
 namespace PackageDelivery.Service
 {
     public class PackageService
     {
         private readonly AppDbContext _db;
+        private Dictionary<PackageStatus, HashSet<PackageStatus>> _validPackageStatusChanges = new();
         public PackageService(AppDbContext db)
         {
             _db = db;
+
+            AllowStatusChange(PackageStatus.Registered, PackageStatus.Accepted);
+            AllowStatusChange(PackageStatus.Accepted, PackageStatus.AtDepot);
+            AllowStatusChange(PackageStatus.AtDepot, PackageStatus.OutForDelivery);
+            AllowStatusChange(PackageStatus.OutForDelivery, PackageStatus.Delivered);
+            AllowStatusChange(PackageStatus.OutForDelivery, PackageStatus.DeliveryFailed);
+            AllowStatusChange(PackageStatus.DeliveryFailed, PackageStatus.OutForDelivery);
+            AllowStatusChange(PackageStatus.DeliveryFailed, PackageStatus.Returning);
+            AllowStatusChange(PackageStatus.Returning, PackageStatus.Returned);
+        }
+
+        private void AllowStatusChange(PackageStatus current, PackageStatus next)
+        {
+            if (_validPackageStatusChanges.TryGetValue(current, out var options))
+            {
+                options.Add(next);
+            }
+            else
+            {
+                _validPackageStatusChanges.Add(current, new HashSet<PackageStatus> { next });
+            }
+        }
+
+        private bool IsStateChangeValid(PackageStatus current, PackageStatus next)
+        {
+            if (_validPackageStatusChanges.TryGetValue(current, out var nextOptions))
+            {
+                return nextOptions.Contains(next);
+            }
+            return false;
+        }
+
+        public string ChangePackageStatus(int packageId, PackageStatus nextStatus, string? failureReason = null)
+        {
+            Package? pkg = _db.Packages.Find(packageId);
+            if (pkg == null) return "Nincs ilyen csomag azonosító.";
+
+            if (!IsStateChangeValid(pkg.Status, nextStatus))
+            {
+                return "Ez az állapot váltás nem engedélyezett.";
+            }
+
+            pkg.Status = nextStatus;
+
+
+            var tracking = new Trackings
+            {
+                PackageId = pkg.Id,
+                Status = nextStatus,
+                Timestamp = DateTime.Now,
+                Comment = null,
+                FailureReason = failureReason
+            };
+
+            _db.Trackings.Add(tracking);
+            _db.SaveChanges();
+
+            return "Sikeres állapot változás.";
         }
 
         Package? package;
         Trackings? trackings;
+
+        bool isValid = false;
 
         public List<Package> GetAllPackages()
         {
@@ -52,7 +114,6 @@ namespace PackageDelivery.Service
             Console.WriteLine("ÚJ CSOMAG FELADÁSA");
 
             var customers = customerService?.GetAllCustomers();
-            bool isValid = false;
 
             if (customers?.Count < 2)
             {
@@ -97,18 +158,35 @@ namespace PackageDelivery.Service
                 }
             }
 
-            isValid = false;
-
             Console.Write("Add meg a címzett sorszámát: ");
 
             int recipientIndex;
+            Customer? recipient = null;
+            isValid = false;
 
-            while (!int.TryParse(Console.ReadLine(), out recipientIndex) || recipientIndex < 1 || recipientIndex > customers?.Count)
+            while (!isValid)
             {
-                Console.WriteLine("Érvénytelen választás!");
-                Console.WriteLine("Add meg újból a számot: ");
+                try
+                {
+                    if (!int.TryParse(Console.ReadLine(), out recipientIndex))
+                    {
+                        throw new ArgumentException("Számot adj meg");
+                    }
+                    if (recipientIndex < 1 || recipientIndex > customers?.Count)
+                    {
+                        throw new ArgumentException("Érvénytelen választás");
+                    }
+
+                    recipient = customers?[recipientIndex - 1];
+
+                    isValid = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Add meg a számot újból:");
+                }
             }
-            var recipient = customers?[recipientIndex - 1];
 
 
             if (sender?.Id == recipient?.Id)
@@ -119,54 +197,138 @@ namespace PackageDelivery.Service
             Console.WriteLine("\n--- Kézbesítési cím megadása ---");
             Console.WriteLine("Irányítószám: ");
 
-            int postalCode;
+            int postalCode = 0;
+            isValid = false;
 
-            while (!int.TryParse(Console.ReadLine(), out postalCode) || postalCode < 1000 || postalCode > 9999)
+            while (!isValid)
             {
-                Console.WriteLine("Hiba: Pontosan 4 számjegyű irányítószámot adj meg!");
-                Console.WriteLine("Irányítószám újra: ");
+                try
+                {
+                    if (!int.TryParse(Console.ReadLine(), out postalCode))
+                    {
+                        throw new ArgumentException("Csak számjegy adható meg");
+                    }
+                    if (postalCode < 1000 || postalCode > 9999)
+                    {
+                        throw new ArgumentException("Pontosan 4 számjegyű irányítószám adható meg.!");
+                    }
 
+                    isValid = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Add meg az irányítószámot újra:");
+                }
             }
 
             Console.Write("Település: ");
-            string? city = Console.ReadLine();
 
-            while (string.IsNullOrWhiteSpace(city) || int.TryParse(city, out _))
+            string? city = null;
+            isValid = false;
+
+            while (!isValid)
             {
-                Console.WriteLine("A település mezőt kötelező kitölteni.");
-                Console.WriteLine("\nAdd meg újra: ");
-                city = Console.ReadLine()!;
+                city = Console.ReadLine();
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(city))
+                    {
+                        throw new ArgumentException("Ez egy kötelező mező");
+                    }
+                    if (int.TryParse(city, out _))
+                    {
+                        throw new ArgumentException("Csak betűket adhatsz meg!");
+                    }
+
+                    isValid = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Add meg a települést újra:");
+                }
             }
 
 
             Console.Write("Közterület neve: ");
-            string? street = Console.ReadLine();
 
-            while (string.IsNullOrWhiteSpace(street) || int.TryParse(street, out _))
+            string? street = null;
+            isValid = false;
+
+            while (!isValid)
             {
-                Console.WriteLine("A közterület neve mezőt kötelező kitölteni.");
-                Console.WriteLine("\nAdd meg újra: ");
-                street = Console.ReadLine()!;
+                street = Console.ReadLine();
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(street))
+                    {
+                        throw new ArgumentException("Ez egy kötelező mező");
+                    }
+                    if (int.TryParse(street, out _))
+                    {
+                        throw new ArgumentException("Csak betűket adhatsz meg!");
+                    }
+
+                    isValid = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Add meg az utcanevet újra:");
+                }
             }
 
             Console.Write("Közterület jellege (pl. utca, tér): ");
-            string? streetType = Console.ReadLine();
 
-            while (string.IsNullOrWhiteSpace(streetType) || int.TryParse(streetType, out _))
+            string? streetType = null;
+            isValid = false;
+
+            while (!isValid)
             {
-                Console.WriteLine("A közterület jellege mezőt kötelező kitölteni.");
-                Console.WriteLine("\nAdd meg újra: ");
-                streetType = Console.ReadLine()!;
+                streetType = Console.ReadLine();
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(streetType))
+                    {
+                        throw new ArgumentException("Ez egy kötelező mező");
+                    }
+                    if (int.TryParse(streetType, out _))
+                    {
+                        throw new ArgumentException("Csak betűket adhatsz meg!");
+                    }
+
+                    isValid = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Add meg a közterület jellegét újra:");
+                }
             }
 
             Console.Write("Házszám: ");
-            string? houseNumber = Console.ReadLine();
 
-            while (string.IsNullOrWhiteSpace(houseNumber))
+            string? houseNumber = null;
+            isValid = false;
+
+            while (!isValid)
             {
-                Console.WriteLine("A házszám mezőt kötelező kitölteni.");
-                Console.WriteLine("\nAdd meg újra: ");
-                houseNumber = Console.ReadLine()!;
+                houseNumber = Console.ReadLine();
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(houseNumber))
+                    {
+                        throw new ArgumentException("Ez egy kötelező mező");
+                    }
+
+                    isValid = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Add meg a házszámot újra:");
+                }
             }
 
             Console.Write("Opcionális további címadat: ");
@@ -178,34 +340,66 @@ namespace PackageDelivery.Service
             Console.WriteLine("3 --> Hűtést igénylő csomag");
 
             int boxType;
+            isValid = false;
+
+            Package.Type type = 0;
 
             Console.WriteLine("Add meg a csomag típusát: ");
 
-            while (!int.TryParse(Console.ReadLine(), out boxType) || boxType < 1 || boxType > 3)
+            while (!isValid)
             {
-                Console.WriteLine("Hiba: Érvénytelen csomag típus! 1, 2 vagy 3 adható meg.");
-                Console.WriteLine("Add meg a csomag típusát újból: ");
+                try
+                {
+                    if (!int.TryParse(Console.ReadLine(), out boxType))
+                    {
+                        throw new ArgumentException("Szám adható csak meg");
+                    }
+
+
+                    type = boxType switch
+                    {
+                        1 => Package.Type.Normal,
+                        2 => Package.Type.Fragile,
+                        3 => Package.Type.Refrigerated,
+                        _ => throw new ArgumentException("Érvénytelen csomag típus! 1, 2 vagy 3 adható meg.")
+                    };
+
+                    isValid = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Add meg a csomag típusát újból:");
+                }
             }
 
-            Package.Type type = boxType switch
-            {
-                1 => Package.Type.Normal,
-                2 => Package.Type.Fragile,
-                3 => Package.Type.Refrigerated,
-                _ => throw new ArgumentException("Érvénytelen csomag típus! 1, 2 vagy 3 adható meg.")
-            };
-
-
-            double weight;
+            double weight = 0;
+            isValid = false;
 
             if (type == Package.Type.Normal)
             {
                 Console.Write("Add meg a csomag súlyát: ");
 
-                while (!double.TryParse(Console.ReadLine(), out weight) || weight < 0 || weight >= 30)
+                while (!isValid)
                 {
-                    Console.WriteLine("Hiba: Érvénytelen csomag súly");
-                    Console.WriteLine("Add meg újra a csomag súlyát: ");
+                    try
+                    {
+                        if (!double.TryParse(Console.ReadLine(), out weight))
+                        {
+                            throw new ArgumentException("Szám adható csak meg");
+                        }
+                        if (weight < 0 || weight >= 30)
+                        {
+                            throw new ArgumentException("A súlynak 0 és 30 között kell lennie");
+                        }
+
+                        isValid = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        Console.WriteLine("Add meg a súlyt újból:");
+                    }
                 }
 
                 package = new Package
@@ -229,13 +423,32 @@ namespace PackageDelivery.Service
             {
                 Console.Write("Add meg a csomag súlyát: ");
 
-                while (!double.TryParse(Console.ReadLine(), out weight) || weight < 0 || weight >= 10)
+                isValid = false;
+
+                while (!isValid)
                 {
-                    Console.WriteLine("Hiba: Érvénytelen csomag súly");
-                    Console.WriteLine("Add meg újra a csomag súlyát: ");
+                    try
+                    {
+                        if (!double.TryParse(Console.ReadLine(), out weight))
+                        {
+                            throw new ArgumentException("Szám adható csak meg");
+                        }
+                        if (weight < 0 || weight >= 10)
+                        {
+                            throw new ArgumentException("A súlynak 0 és 10 között kell lennie");
+                        }
+
+                        isValid = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        Console.WriteLine("Add meg a súlyt újból:");
+                    }
                 }
 
                 int fragileLevel;
+                isValid = false;
 
                 FragilePackage.Level level = 0;
 
@@ -247,7 +460,7 @@ namespace PackageDelivery.Service
                     {
                         if (!int.TryParse(Console.ReadLine(), out fragileLevel))
                         {
-                            Console.WriteLine("Hiba: Kérlek számot adj meg!");
+                            Console.WriteLine("Szám adható csak meg!");
                             Console.WriteLine("Add meg a törékenységi szintet újból: ");
                             continue;
                         }
@@ -257,14 +470,14 @@ namespace PackageDelivery.Service
                             1 => FragilePackage.Level.Low,
                             2 => FragilePackage.Level.Medium,
                             3 => FragilePackage.Level.High,
-                            _ => throw new ArgumentOutOfRangeException("Érvénytelen törékenységi szint! 1, 2 vagy 3 adható meg.")
+                            _ => throw new ArgumentException("Érvénytelen törékenységi szint! 1, 2 vagy 3 adható meg.")
                         };
                         isValid = true;
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine(ex.Message);
-                        Console.WriteLine("Add meg a törékenységi szintet újból.\n");
+                        Console.WriteLine("Add meg a törékenységi szintet újból: ");
                     }
                 }
 
@@ -294,30 +507,80 @@ namespace PackageDelivery.Service
             {
                 Console.Write("Add meg a csomag súlyát: ");
 
-                while (!double.TryParse(Console.ReadLine(), out weight) || weight < 0 || weight >= 20)
+                isValid = false;
+
+                while (!isValid)
                 {
-                    Console.WriteLine("Hiba: Érvénytelen csomag súly");
-                    Console.WriteLine("Add meg újra a csomag súlyát: ");
+                    try
+                    {
+                        if (!double.TryParse(Console.ReadLine(), out weight))
+                        {
+                            throw new ArgumentException("Szám adható csak meg");
+                        }
+                        if (weight < 0 || weight >= 20)
+                        {
+                            throw new ArgumentException("A súlynak 0 és 20 között kell lennie");
+                        }
+
+                        isValid = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        Console.WriteLine("Add meg a súlyt újból:");
+                    }
                 }
 
                 Console.WriteLine("Add meg a csomag minimális tárolási hőmérsékletét Celsius-fokban: ");
 
-                int min;
+                int min = 0;
+                int max = 0;
+                isValid = false;
 
-                while (!int.TryParse(Console.ReadLine(), out min) || min < -30 || min > 20)
+                while (!isValid)
                 {
-                    Console.WriteLine("Hiba: A minimális hőmérsékletnek -30 és +20 °C között kell lennie, " +
-                        "és kisebbnek kell lennie a maximális értéknél!");
-                    Console.WriteLine("Add meg a csomag minimális tárolási hőmérsékletét újból: ");
+                    try
+                    {
+                        if (!int.TryParse(Console.ReadLine(), out min))
+                        {
+                            throw new ArgumentException("Szám adható csak meg");
+                        }
+                        if (min < -30 || min > 20 || min > max)
+                        {
+                            throw new ArgumentException("A hőmérsékletnek -30 és +20 °C között kell lennie");
+                        }
+
+                        isValid = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        Console.WriteLine("Add meg a minimális hőmérsékletet újból:");
+                    }
                 }
 
-                int max;
+                isValid = false;
 
-                while (!int.TryParse(Console.ReadLine(), out max) || max < -30 || max > 20 || max < min)
+                while (!isValid)
                 {
-                    Console.WriteLine("Hiba: A maximális hőmérsékletnek -30 és +20 °C között kell lennie, " +
-                        "és nagyobbnak kell lennie a minimális értéknél!");
-                    Console.WriteLine("Add meg a csomag maximális tárolási hőmérsékletét újból: ");
+                    try
+                    {
+                        if (!int.TryParse(Console.ReadLine(), out max))
+                        {
+                            throw new ArgumentException("Szám adható csak meg");
+                        }
+                        if (max < -30 || max > 20 || max < min)
+                        {
+                            throw new ArgumentException("A hőmérsékletnek -30 és +20 °C között kell lennie");
+                        }
+
+                        isValid = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        Console.WriteLine("Add meg a maximális hőmérsékletet újból:");
+                    }
                 }
 
                 package = new RefrigeratedPackage
@@ -371,16 +634,56 @@ namespace PackageDelivery.Service
         }
         public void PackageProcessor()
         {
+
             Console.WriteLine("Kérlek add meg a csomag azonosítóját: ");
-            string? chooseBox = Console.ReadLine();
+            string? chooseBox = null;
+            Package? currentPackage = null;
+
+            isValid = false;
+
+            while (!isValid)
+            {
+                chooseBox = Console.ReadLine();
+                currentPackage = _db.Packages.FirstOrDefault(p => p.TrackingNumber == chooseBox);
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(chooseBox))
+                    {
+                        throw new ArgumentException("Ez egy kötelező mező");
+                    }
+                    if (int.TryParse(chooseBox, out _))
+                    {
+                        throw new ArgumentException("Érvénytelen csomagazonosító!");
+                    }
+                    if (currentPackage! == null)
+                    {
+                        throw new ArgumentException("Nincs ilyen csomag azonosító.");
+                    }
+
+                    isValid = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Add meg a csomag azonosítóját újra:");
+                }
+            }
 
             string? failed = null;
 
-            var currentPackage = _db.Packages.FirstOrDefault(p => p.TrackingNumber == chooseBox);
 
-            if (currentPackage == null)
+
+
+            string choice = null;
+
+            if (currentPackage!.Status == PackageStatus.Returned)
             {
-                Console.WriteLine("Nincs ilyen csomag.");
+                Console.WriteLine("A csomag vissza lett küldve már a feladónak.");
+                return;
+            }
+            if (currentPackage!.Status == PackageStatus.Delivered)
+            {
+                Console.WriteLine("A csomag már kézbesitve lett.");
                 return;
             }
 
@@ -388,274 +691,277 @@ namespace PackageDelivery.Service
                             .Where(p => p.PackageId == currentPackage!.Id)
                             .Count(t => t.Status == PackageStatus.DeliveryFailed);
 
-            foreach (var item in _db.Packages)
+            Console.WriteLine($"Jelenlegi állapot: {currentPackage.Status}");
+            string result = "";
+
+            if (currentPackage!.Status == PackageStatus.Registered)
             {
-                if (chooseBox == item.TrackingNumber)
+                isValid = false;
+                while (!isValid)
                 {
-                    if (item.Status == PackageStatus.Returned)
+                    try
                     {
-                        Console.WriteLine("A csomag vissza lett küldve már a feladónak.");
-                    }
-                    else if (item.Status == PackageStatus.Delivered)
-                    {
-                        Console.WriteLine("A csomag már kézbesitve lett.");
-                    }
-                    else
-                    {
-                        int choice;
+                        Console.WriteLine("Következő lehetséges állapot: 1 - Csomag elfogadva");
+                        string mode = Console.ReadLine()!;
 
-                        if (item.Status == PackageStatus.Registered)
+                        _ = mode switch
                         {
-                            Console.WriteLine($"Jelenlegi állapot: {item.Status}");
-                            Console.WriteLine("Következő lehetséges állapot: 1 - Csomag elfogadva");
+                            "1" => ChangePackageStatus(currentPackage.Id, PackageStatus.Accepted),
+                            _ => throw new ArgumentException("Érvénytelen állapot átmenet.")
+                        };
+                        isValid = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        Console.WriteLine("Add meg a számot újból!");
+                    }
+                }
+            }
+            else if (currentPackage!.Status == PackageStatus.Accepted)
+            {
+                isValid = false;
+                while (!isValid)
+                {
+                    try
+                    {
+                        Console.WriteLine("Következő lehetséges állapot: 1 - Kiszállítás megkezdése");
+                        string mode = Console.ReadLine()!;
 
-                            while (!int.TryParse(Console.ReadLine(), out choice) && choice != 1)
-                            {
-                                Console.WriteLine("Érvénytelen választás");
-                                Console.WriteLine("Add meg a számot újból");
-                            }
+                        _ = mode switch
+                        {
+                            "1" => ChangePackageStatus(currentPackage.Id, PackageStatus.AtDepot),
+                            _ => throw new ArgumentException("Érvénytelen állapot átmenet.")
+                        };
+                        isValid = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        Console.WriteLine("Add meg a számot újból!");
+                    }
+                }
+            }
+            else if (currentPackage!.Status == PackageStatus.AtDepot)
+            {
+                isValid = false;
+                while (!isValid)
+                {
+                    try
+                    {
+                        Console.WriteLine("Következő lehetséges állapot: 1 - A csomag kiszállításra kijelölve");
+                        string mode = Console.ReadLine()!;
 
-                            if (choice == 1)
-                            {
-                                item.Status = PackageStatus.Accepted;
-                                Console.WriteLine("A csomag fogadva lett a rendszerben.");
-                            }
+                        _ = mode switch
+                        {
+                            "1" => ChangePackageStatus(currentPackage.Id, PackageStatus.OutForDelivery),
+                            _ => throw new ArgumentException("Érvénytelen állapot átmenet.")
+                        };
+                        isValid = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        Console.WriteLine("Add meg a számot újból!");
+                    }
+                }
+            }
+            else if (currentPackage!.Status == PackageStatus.OutForDelivery)
+            {
+                isValid = false;
+                bool reasonValid = false;
+                while (!isValid)
+                {
+                    try
+                    {
+                        Console.WriteLine("Következő lehetséges állapot: 1 - Kézbesítve, 2 - Kézbesítés sikertelen");
+                        string mode = Console.ReadLine()!;
 
-
-
-                            else if (item.Status == PackageStatus.Accepted)
-                            {
-                                Console.WriteLine($"Jelenlegi állapot: {item.Status}");
-                                Console.WriteLine("Következő lehetséges állapot: 1 - Kiszállítás megkezdése");
-
-                                while (!int.TryParse(Console.ReadLine(), out choice) && choice != 1)
-                                {
-                                    Console.WriteLine("Érvénytelen választás");
-                                    Console.WriteLine("Add meg a számot újból");
-                                }
-                                if (choice == 1)
-                                {
-                                    item.Status = PackageStatus.AtDepot;
-                                    Console.WriteLine("A csomag át lett helyezve a depóba.");
-                                }
-                            }
-
-
-
-
-
-                            else if (item.Status == PackageStatus.AtDepot)
-                            {
-                                Console.WriteLine($"Jelenlegi állapot: {item.Status}");
-                                Console.WriteLine("Következő lehetséges állapot: 1 - A csomag kiszállításra kijelölve");
-
-                                while (!int.TryParse(Console.ReadLine(), out choice) && choice != 1)
-                                {
-                                    Console.WriteLine("Érvénytelen választás");
-                                    Console.WriteLine("Add meg a számot újból");
-                                }
-
-
-                                if (choice == 1)
-                                {
-                                    item.Status = PackageStatus.OutForDelivery;
-                                    Console.WriteLine("Kiszállítás alatt.");
-                                }
-
-                            }
-
-                            else if (item.Status == PackageStatus.OutForDelivery)
-                            {
-                                Console.WriteLine("Mi történt a csomaggal? (1 - Kézbesítve, 2 - Kézbesítés sikertelen)");
-
-                                while (!int.TryParse(Console.ReadLine(), out choice) && choice != 1 && choice != 2)
-                                {
-                                    Console.WriteLine("Érvénytelen választás");
-                                    Console.WriteLine("Add meg a számot újból");
-                                }
-
-                                int reason;
-
-                                switch (choice)
-                                {
-                                    case 1:
-                                        item.Status = PackageStatus.Delivered;
-                                        Console.WriteLine("A csomag kézbesítve.");
-                                        break;
-
-                                    case 2:
-                                        item.Status = PackageStatus.DeliveryFailed;
-                                        Console.WriteLine("A csomag kézbesítése sikertelen volt, oka:");
-                                        Console.WriteLine("1 - A címzett nem volt elérhető");
-                                        Console.WriteLine("2 - A cím nem volt megtalálható");
-                                        Console.WriteLine("3 - A címzett megtagadta az átvételt");
-
-                                        while (!int.TryParse(Console.ReadLine(), out reason) && choice != 1 && choice != 2
-                                            && choice != 3)
-                                        {
-                                            Console.WriteLine("Érvénytelen választás");
-                                            Console.WriteLine("Add meg a számot újból");
-                                        }
-
-                                        if (reason == 1)
-                                        {
-                                            failed = "RecipientNotAvailable";
-                                        }
-                                        if (reason == 2)
-                                        {
-                                            failed = "AddressNotFound";
-                                        }
-                                        if (reason == 3)
-                                        {
-                                            failed = "RecipientRefused";
-                                        }
-                                        break;
-                                }
-                            }
-
-
-
-                            else if (item.Status == PackageStatus.DeliveryFailed)
-                            {
-                                if (count <= 2)
-                                {
-                                    Console.WriteLine("Mi történt a csomaggal? (1 - Kiszállítás megkezdése, 2 - Visszaküldés)");
-
-                                    while (!int.TryParse(Console.ReadLine(), out choice) && choice != 1 && choice != 2)
-                                    {
-                                        Console.WriteLine("Érvénytelen választás");
-                                        Console.WriteLine("Add meg a számot újból");
-                                    }
-
-                                    switch (choice)
-                                    {
-                                        case 1:
-                                            item.Status = PackageStatus.OutForDelivery;
-                                            Console.WriteLine("A csomag kiszállításra kijelölve.");
-                                            break;
-
-                                        case 2:
-                                            item.Status = PackageStatus.Returning;
-                                            Console.WriteLine("A csomag visszaküldésre kerül.");
-                                            break;
-                                    }
-                                }
-                                else
-                                {
-                                    Console.WriteLine("A csomag kézbesítése sikertelen volt már 3 alkalommal, ezért visszaküldésre kerül a feladónak.");
-                                    item.Status = PackageStatus.Returning;
-                                }
-                            }
-
-
-
-
-
-                            else if (item.Status == PackageStatus.Returning)
-                            {
-                                Console.WriteLine($"Jelenlegi állapot: {item.Status}");
-                                Console.WriteLine("Következő lehetséges állapot: 1 - Visszaküldés");
-
-                                while (!int.TryParse(Console.ReadLine(), out choice) && choice != 1)
-                                {
-                                    Console.WriteLine("Érvénytelen választás");
-                                    Console.WriteLine("Add meg a számot újból");
-                                }
-
-
-                                if (choice == 1)
-                                {
-                                    item.Status = PackageStatus.Returned;
-                                    Console.WriteLine("Visszaküldve.");
-                                }
-                            }
-
-                            else if (item.Status == PackageStatus.Returned)
-                            {
-                                Console.WriteLine("A csomag visszaküldve a feladónak.");
-                            }
-                            else if (item.Status == PackageStatus.Delivered)
-                            {
-                                Console.WriteLine("A csomag kézbesítve.");
-                            }
-
-
-                            trackings = new Trackings
-                            {
-                                PackageId = item.Id,
-                                Status = item.Status,
-                                Timestamp = DateTime.Now,
-                                Comment = null,
-                                FailureReason = failed
-                            };
-
-                            _db.Trackings.Add(trackings!);
-                            _db.SaveChanges();
-
-                            Console.WriteLine("\n" + count);
+                        if (mode == "1")
+                        {
+                            ChangePackageStatus(currentPackage.Id, PackageStatus.Delivered);
                         }
+                        else if (mode == "2")
+                        {
+                            while (!reasonValid)
+                            {
+                                try
+                                {
+                                    Console.WriteLine("Mi történt a csomaggal? (1 - A címzett nem volt elérhető, 2 - A cím nem volt megtalálható, 3 - A címzett megtagadta az átvételt)");
+                                    choice = Console.ReadLine()!;
+                                    failed = choice switch
+                                    {
+                                        "1" => "RecipientNotAvailable",
+                                        "2" => "AddressNotFound",
+                                        "3" => "RecipientRefused",
+                                        _ => throw new ArgumentException("Érvénytelen választás")
+                                    };
+                                    reasonValid = true;
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine(ex.Message);
+                                    Console.WriteLine("Add meg a számot újból!");
+                                }
+                            }
+                            ChangePackageStatus(currentPackage.Id, PackageStatus.DeliveryFailed);
+                        }
+                        else
+                        {
+                            throw new ArgumentException("Érvénytelen állapot átmenet.");
+                        }
+                        isValid = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        Console.WriteLine("Add meg a számot újból!");
+                    }
+                }
+            }
+            else if (currentPackage!.Status == PackageStatus.DeliveryFailed)
+            {
+                if (count <= 2)
+                {
+                    isValid = false;
+                    while (!isValid)
+                    {
+                        try
+                        {
+                            Console.WriteLine("Következő lehetséges állapot: 1 - Kiszállítás megkezdése, 2 - Visszaküldés");
+                            string mode = Console.ReadLine()!;
+                            _ = mode switch
+                            {
+                                "1" => ChangePackageStatus(currentPackage.Id, PackageStatus.OutForDelivery),
+                                "2" => ChangePackageStatus(currentPackage.Id, PackageStatus.Returning),
+                                _ => throw new ArgumentException("Érvénytelen állapot átmenet.")
+                            };
+                            isValid = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                            Console.WriteLine("Add meg a számot újból!");
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("A csomag kézbesítése sikertelen volt már 3 alkalommal, ezért visszaküldésre kerül a feladónak.");
+                    ChangePackageStatus(currentPackage.Id, PackageStatus.Returning);
+                }
+            }
+            else if (currentPackage!.Status == PackageStatus.Returning)
+            {
+                isValid = false;
+
+                while (!isValid)
+                {
+                    try
+                    {
+                        Console.WriteLine("Következő lehetséges állapot: 1 - Visszaküldve");
+                        string mode = Console.ReadLine()!;
+                        _ = mode switch
+                        {
+                            "1" => ChangePackageStatus(currentPackage.Id, PackageStatus.Returned),
+                            _ => throw new ArgumentException("Érvénytelen állapot átmenet.")
+                        };
+                        isValid = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        Console.WriteLine("Add meg a számot újból!");
                     }
                 }
             }
         }
 
+
+
+
         public void TrackingHistory()
         {
             Console.WriteLine("Kérlek add meg a csomag azonosítóját: ");
-            string? chooseBox = Console.ReadLine();
-            foreach (var item in _db.Packages)
+            string? chooseBox;
+            Package? currentPackage = null;
+
+            while (!isValid)
             {
-
-                var senders = _db.Customers.Where(s => s.Id == item.SenderId).ToList();
-                var recipient = _db.Customers.Where(r => r.Id == item.RecipientId).ToList();
-
-                if (chooseBox == item.TrackingNumber)
+                chooseBox = Console.ReadLine();
+                currentPackage = _db.Packages.FirstOrDefault(p => p.TrackingNumber == chooseBox);
+                try
                 {
-                    Console.WriteLine($"Csomag: {item.TrackingNumber}");
-                    Console.WriteLine($"Feladó: {senders[0].Name}");
-                    Console.WriteLine($"Címzett: {recipient[0].Name}");
-                    Console.WriteLine($"Tömeg: {item.Weight} kg");
-                    Console.WriteLine($"Tipus: {item.BoxType}");
-
-                    if (item.BoxType == Package.Type.Fragile)
+                    if (string.IsNullOrWhiteSpace(chooseBox))
                     {
-                        Console.WriteLine($"Törékenység: {((FragilePackage)item).FragileLevel.ToString()}");
-                        Console.WriteLine($"Kezelési utasítás: {((FragilePackage)item).HandlingInstructions}");
+                        throw new ArgumentException("Ez egy kötelező mező");
                     }
-                    if (item.BoxType == Package.Type.Refrigerated)
+                    if (int.TryParse(chooseBox, out _))
                     {
-                        Console.WriteLine($"Megengedett tárolási hőmérséklet tartomány: {((RefrigeratedPackage)item).MinTemperature} °C és {((RefrigeratedPackage)item).MaxTemperature} °C");
+                        throw new ArgumentException("Érvénytelen csomagazonosító!");
+                    }
+                    if (currentPackage! == null)
+                    {
+                        throw new ArgumentException("Nincs ilyen csomag azonosító.");
                     }
 
+                    isValid = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Add meg a csomag azonosítóját újra:");
+                }
+            }
 
-                    Console.WriteLine($"Kézbesítési Cím: {item.PostalCode} {item.City} {item.StreetName} {item.StreetType} {item.HouseNumber}");
-                    Console.WriteLine($"Feladás dátuma: {item.CreatedAt}");
-                    Console.WriteLine($"Aktuális állapota: {item.Status}");
+            var senders = _db.Customers.Where(s => s.Id == currentPackage!.SenderId).ToList();
+            var recipient = _db.Customers.Where(r => r.Id == currentPackage!.RecipientId).ToList();
 
 
 
-                    var trackingHistory = _db.Trackings.Where(t => t.PackageId == item.Id).OrderBy(t => t.Timestamp).ToList();
-                    if (trackingHistory.Count == 0)
+            Console.WriteLine($"Csomag: {currentPackage!.TrackingNumber}");
+            Console.WriteLine($"Feladó: {senders[0].Name}");
+            Console.WriteLine($"Címzett: {recipient[0].Name}");
+            Console.WriteLine($"Tömeg: {currentPackage!.Weight} kg");
+            Console.WriteLine($"Tipus: {currentPackage!.BoxType}");
+
+            if (currentPackage!.BoxType == Package.Type.Fragile)
+            {
+                Console.WriteLine($"Törékenység: {((FragilePackage)currentPackage).FragileLevel.ToString()}");
+                Console.WriteLine($"Kezelési utasítás: {((FragilePackage)currentPackage).HandlingInstructions}");
+            }
+            if (currentPackage!.BoxType == Package.Type.Refrigerated)
+            {
+                Console.WriteLine($"Megengedett tárolási hőmérséklet tartomány: {((RefrigeratedPackage)currentPackage).MinTemperature} °C és {((RefrigeratedPackage)currentPackage).MaxTemperature} °C");
+            }
+
+
+            Console.WriteLine($"Kézbesítési Cím: {currentPackage!.PostalCode} {currentPackage!.City} {currentPackage!.StreetName} {currentPackage!.StreetType} {currentPackage!.HouseNumber}");
+            Console.WriteLine($"Feladás dátuma: {currentPackage!.CreatedAt}");
+            Console.WriteLine($"Aktuális állapota: {currentPackage!.Status}");
+
+
+            var trackingHistory = _db.Trackings.Where(t => t.PackageId == currentPackage!.Id).OrderBy(t => t.Timestamp).ToList();
+            if (trackingHistory.Count == 0)
+            {
+                Console.WriteLine("Nincs nyomkövetési előzmény.");
+            }
+            else
+            {
+                Console.WriteLine("\nNyomkövetés:");
+                foreach (var tracking in trackingHistory)
+                {
+                    if (tracking.FailureReason != null)
                     {
-                        Console.WriteLine("Nincs nyomkövetési előzmény.");
+                        Console.WriteLine($"{tracking.Timestamp} {tracking.Status} - {tracking.FailureReason}");
                     }
                     else
                     {
-                        Console.WriteLine("\nNyomkövetés:");
-                        foreach (var tracking in trackingHistory)
-                        {
-                            if (tracking.FailureReason != null)
-                            {
-                                Console.WriteLine($"{tracking.Timestamp} {tracking.Status} - {tracking.FailureReason}");
-                            }
-                            else
-                            {
-                                Console.WriteLine($"{tracking.Timestamp} {tracking.Status}");
-                            }
-                        }
+                        Console.WriteLine($"{tracking.Timestamp} {tracking.Status}");
                     }
                 }
             }
+
         }
     }
 }
