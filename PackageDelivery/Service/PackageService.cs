@@ -95,8 +95,13 @@ namespace PackageDelivery.Service
         public void DisplayText(Package package)
         {
 
-            var senders = _db.Customers.Where(s => s.Id == package.SenderId).ToList();
-            var recipient = _db.Customers.Where(r => r.Id == package.RecipientId).ToList();
+            var senders = _db.Customers
+                .Where(s => s.Id == package.SenderId)
+                .ToList();
+
+            var recipient = _db.Customers
+                .Where(r => r.Id == package.RecipientId)
+                .ToList();
 
             Console.WriteLine($"Csomag: {package.TrackingNumber}");
             Console.WriteLine($"Feladó: {senders[0].Name}");
@@ -913,9 +918,13 @@ namespace PackageDelivery.Service
                 }
             }
 
-            var senders = _db.Customers.Where(s => s.Id == currentPackage!.SenderId).ToList();
-            var recipient = _db.Customers.Where(r => r.Id == currentPackage!.RecipientId).ToList();
+            var senders = _db.Customers
+                .Where(s => s.Id == currentPackage!.SenderId)
+                .ToList();
 
+            var recipient = _db.Customers
+                .Where(r => r.Id == currentPackage!.RecipientId)
+                .ToList();
 
 
             Console.WriteLine($"Csomag: {currentPackage!.TrackingNumber}");

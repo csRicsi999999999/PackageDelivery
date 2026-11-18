@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace PackageDelivery.Service
 {
@@ -18,10 +19,13 @@ namespace PackageDelivery.Service
         }
         public void NumberOfPackagesByStatus()
         {
-            foreach (var item in _db.Packages
+            var packages = _db.Packages
                 .Where(p => p.Status >= 0)
                 .OrderByDescending(p => p.TrackingNumber)
-                .GroupBy(p => p.Status))
+                .GroupBy(p => p.Status)
+                .ToList();
+
+            foreach (var item in packages)
             {
                 Console.WriteLine("\n" + item.Key + ": " + item.Count() + "db ilyen állapotú csomag van");
             }
@@ -33,9 +37,12 @@ namespace PackageDelivery.Service
         public void PackageTypeStatistics()
         {
 
-            foreach (var item in _db.Packages
+            var packages = _db.Packages
                         .OrderByDescending(p => p.BoxType)
-                        .GroupBy(p => p.BoxType))
+                        .GroupBy(p => p.BoxType)
+                        .ToList();
+
+            foreach(var item in packages)
             { 
                 Console.WriteLine($"\nTípus: {item.Key} - {item.Count()} db ilyen típusú csomag van");
                 Console.WriteLine($"Összes súly: {item.Sum(p => p.Weight):F2} kg");
@@ -47,37 +54,59 @@ namespace PackageDelivery.Service
         }
 
         public void TopFiveSenders()
-        { 
-            var packages = _db.Packages.ToList();
+        {
+            
+                var packages = _db.Packages
+                    .GroupBy(p => p.SenderId)
+                    .Select(g => new
+                    {
+                        SenderId = g.Key,
+                        Count = g.Count(),
+                        TotalWeight = g.Sum(p => p.Weight)
+                    })
+                    .OrderByDescending(x => x.Count)
+                    .Take(5)
+                    .ToList();
 
-            var item = packages
-                .GroupBy(p => p.SenderId)
-                .OrderByDescending(p => p.Count())
-                .Take(5);
+                if (packages.Count < 5)
+                {
+                    Console.WriteLine("\nNincs még elegendő feladott csomag a TOP5-ös statisztikához.");
+                }
 
-            foreach (var sender in item)
-            {
-                var customer = _db.Customers.FirstOrDefault(c => c.Id == sender.Key);
+                Console.WriteLine($"TOP {packages.Count}: ");
+                
+                 
+                foreach (var item in packages)
+                {
+                    // Lekérjük a nevet az ID alapján az adatbázisból
+                    var customer = _db.Customers.FirstOrDefault(c => c.Id == item.SenderId);
 
-                Console.WriteLine($"\nFeladó: {customer?.Name} - {sender.Count()} db csomagot adott fel, összes súly: {sender.Sum(p => p.Weight)} kg");
-            }
+                    Console.WriteLine($"\nFeladó: {customer?.Name} - {item.Count} db csomagot adott fel, összes súly: {item.TotalWeight} kg");
+                
+                }
 
             Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
             Console.ReadKey();
+
         }
 
         public void ReasonsForUnsuccessfulDeliveries()
         {
-            var packages = _db.Trackings.ToList();
 
-            var item = packages
+            var packages = _db.Trackings
                 .Where(p => p.FailureReason != null)
                 .GroupBy(p => p.FailureReason)
-                .OrderByDescending(p => p.Count());
+                .Select(g => new
+                {
+                    Reason = g.Key,
+                    Count = g.Count()
+                })
+                .OrderByDescending(x => x.Count)
+                .ToList();
 
-            foreach (var reason in item)
+            foreach (var item in packages)
             {
-                Console.WriteLine($"\nHiba oka: {reason.Key} - {reason.Count()} db sikertelen kézbesítés");
+                Console.WriteLine($"\nHiba oka: {item.Reason} - {item.Count} db sikertelen kézbesítés");
             }
 
             Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");

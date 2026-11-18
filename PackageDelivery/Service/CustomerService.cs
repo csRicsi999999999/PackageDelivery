@@ -291,9 +291,11 @@ namespace PackageDelivery.Service
                 }
             }
 
-            foreach (var item in _db.Packages
+            var packages = _db.Packages
                 .Where(p => p.SenderId == sender!.Id)
-                .OrderByDescending(p => p.CreatedAt))
+                .OrderByDescending(p => p.CreatedAt);
+
+            foreach(var item in packages)
             {
                 _packageService?.DisplayText(item);
             }
@@ -338,9 +340,11 @@ namespace PackageDelivery.Service
                 }
             }
 
-            foreach (var item in _db.Packages
+            var packages = _db.Packages
                 .Where(p => p.RecipientId == recipient!.Id)
-                .OrderByDescending(p => p.CreatedAt))
+                .OrderByDescending(p => p.CreatedAt);
+
+            foreach(var item in packages)
             {
                 _packageService?.DisplayText(item);
             }

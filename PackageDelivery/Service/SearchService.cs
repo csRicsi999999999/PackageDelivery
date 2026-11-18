@@ -52,8 +52,11 @@ namespace PackageDelivery.Service
                     Console.WriteLine("Add meg a csomag azonosítóját újra:");
                 }
             }
-            foreach (var item in _db.Packages.
-                Where(p => p.TrackingNumber == trackingId))
+
+            var packages = _db.Packages.
+                Where(p => p.TrackingNumber == trackingId);
+
+            foreach (var item in packages)
             {
                 _packageService.DisplayText(item);
             }
@@ -100,9 +103,11 @@ namespace PackageDelivery.Service
                     Console.WriteLine("Add meg a számot újból:");
                 }
 
-            foreach (var item in _db.Packages
+            var packages = _db.Packages
                 .Where(p => p.SenderId == sender!.Id)
-                .OrderByDescending(p => p.CreatedAt))
+                .OrderByDescending(p => p.CreatedAt);
+
+            foreach(var item in packages)
             {
                 _packageService.DisplayText(item);
             }
@@ -150,9 +155,11 @@ namespace PackageDelivery.Service
                     Console.WriteLine("Add meg a számot újból:");
                 }
 
-            foreach (var item in _db.Packages
-                .Where(p => p.RecipientId == recipient!.Id)
-                .OrderByDescending(p => p.CreatedAt))
+            var packages = _db.Packages
+               .Where(p => p.RecipientId == recipient!.Id)
+               .OrderByDescending(p => p.CreatedAt);
+
+            foreach(var item in packages)
             {
                 _packageService.DisplayText(item);
             }
@@ -161,7 +168,9 @@ namespace PackageDelivery.Service
 
         private void DisplayPackagesByStatus(PackageStatus status)
         {
-            var packages = _db.Packages.Where(p => p.Status == status).ToList();
+            var packages = _db.Packages
+                .Where(p => p.Status == status)
+                .ToList();
 
             foreach (var item in packages)
             {
@@ -251,7 +260,9 @@ namespace PackageDelivery.Service
 
         private void DisplayPackagesByType(Package.Type boxType)
         {
-            var packages = _db.Packages.Where(p => p.BoxType == boxType).ToList();
+            var packages = _db.Packages
+                .Where(p => p.BoxType == boxType)
+                .ToList();
 
             foreach (var item in packages)
             {
@@ -346,9 +357,11 @@ namespace PackageDelivery.Service
 
             endDate = endDate.Date.AddDays(1).AddTicks(-1);
 
-            foreach (var item in _db.Packages
+            var packages = _db.Packages
                 .Where(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate)
-                .OrderBy(p => p.CreatedAt))
+                .OrderBy(p => p.CreatedAt);
+
+            foreach(var item in packages)
             {
                 _packageService.DisplayText(item);
             }
