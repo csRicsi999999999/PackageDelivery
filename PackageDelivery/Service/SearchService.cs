@@ -53,8 +53,9 @@ namespace PackageDelivery.Service
                 }
             }
 
-            var packages = _db.Packages.
-                Where(p => p.TrackingNumber == trackingId);
+            var packages = _db.Packages
+                .Where(p => p.TrackingNumber == trackingId)
+                .ToList();
 
             foreach (var item in packages)
             {
@@ -105,9 +106,10 @@ namespace PackageDelivery.Service
 
             var packages = _db.Packages
                 .Where(p => p.SenderId == sender!.Id)
-                .OrderByDescending(p => p.CreatedAt);
+                .OrderByDescending(p => p.CreatedAt)
+                .ToList();
 
-            foreach(var item in packages)
+            foreach (var item in packages)
             {
                 _packageService.DisplayText(item);
             }
@@ -157,9 +159,10 @@ namespace PackageDelivery.Service
 
             var packages = _db.Packages
                .Where(p => p.RecipientId == recipient!.Id)
-               .OrderByDescending(p => p.CreatedAt);
+               .OrderByDescending(p => p.CreatedAt)
+               .ToList();
 
-            foreach(var item in packages)
+            foreach (var item in packages)
             {
                 _packageService.DisplayText(item);
             }
@@ -359,9 +362,10 @@ namespace PackageDelivery.Service
 
             var packages = _db.Packages
                 .Where(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate)
-                .OrderBy(p => p.CreatedAt);
+                .OrderBy(p => p.CreatedAt)
+                .ToList();
 
-            foreach(var item in packages)
+            foreach (var item in packages)
             {
                 _packageService.DisplayText(item);
             }
