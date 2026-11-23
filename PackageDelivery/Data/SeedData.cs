@@ -23,20 +23,34 @@ namespace PackageDelivery.Data
                 var anna = db.Customers.First(c => c.Name == "Kovács Anna");
                 var peter = db.Customers.First(c => c.Name == "Nagy Péter");
 
-                db.Packages.AddRange(
-                    new Package
+
+                var pkg = new Package
+                {
+                    TrackingNumber = "PKG-2026-00001",
+                    Weight = 4.5,
+                    CreatedAt = DateTime.Now,
+                    Status = PackageStatus.Registered,
+                    SenderId = anna.Id,
+                    RecipientId = peter.Id,
+                    PostalCode = 1011,
+                    City = "Budapest",
+                    StreetName = "Fő",
+                    StreetType = "utca",
+                    HouseNumber = "1"
+                };
+
+                db.Packages.Add(pkg);
+
+                db.SaveChanges();
+
+                db.Trackings.AddRange(
+                    new Trackings
                     {
-                        TrackingNumber = "PKG-2026-00125",
-                        Weight = 4.5,
-                        CreatedAt = DateTime.Now,
+                        PackageId = pkg.Id,
                         Status = PackageStatus.Registered,
-                        SenderId = anna.Id,
-                        RecipientId = peter.Id,
-                        PostalCode = 1011,
-                        City = "Budapest",
-                        StreetName = "Fő",
-                        StreetType = "utca",
-                        HouseNumber = "1"
+                        Timestamp = pkg.CreatedAt,
+                        Comment = null,
+                        FailureReason = null
                     }
                 );
                 db.SaveChanges();

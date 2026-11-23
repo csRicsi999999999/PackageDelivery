@@ -21,13 +21,21 @@ namespace PackageDelivery.Service
         {
             var packages = _db.Packages
                 .Where(p => p.Status >= 0)
-                .OrderByDescending(p => p.TrackingNumber)
                 .GroupBy(p => p.Status)
+                .OrderByDescending(p => p.Count())
                 .ToList();
 
-            foreach (var item in packages)
+            if (packages.Count == 0)
             {
-                Console.WriteLine("\n" + item.Key + ": " + item.Count() + "db ilyen állapotú csomag van");
+                Console.WriteLine("Nincs a feltételnek megfelelő csomag.");
+            }
+
+            else
+            {
+                foreach (var item in packages)
+                {
+                    Console.WriteLine("\n" + item.Key + ": " + item.Count() + "db ilyen állapotú csomag van");
+                }
             }
 
             Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
@@ -38,15 +46,36 @@ namespace PackageDelivery.Service
         {
 
             var packages = _db.Packages
-                        .OrderByDescending(p => p.BoxType)
                         .GroupBy(p => p.BoxType)
+                        .Select(g => new
+                        {
+                            BoxType = g.Key,
+                            Count = g.Count(),
+                            TotalWeight = g.Sum(p => p.Weight),
+                            AvgWeight = g.Average(p => p.Weight)
+                        })
                         .ToList();
 
-            foreach(var item in packages)
-            { 
-                Console.WriteLine($"\nTípus: {item.Key} - {item.Count()} db ilyen típusú csomag van");
-                Console.WriteLine($"Összes súly: {item.Sum(p => p.Weight):F2} kg");
-                Console.WriteLine($"Átlagos súly: {item.Average(p => p.Weight):F2} kg");
+            var result = Enum.GetValues<Package.Type>()
+                        .Select(type =>
+                        {
+                            var match = packages.FirstOrDefault(g => g.BoxType == type);
+                            return new
+                        {
+                            BoxType = type,
+                            Count = match?.Count ?? 0,
+                            TotalWeight = match?.TotalWeight ?? 0.0,
+                            AvgWeight = match?.AvgWeight ?? 0.0
+                        };
+                        })
+                        .OrderByDescending(x => x.Count)
+                        .ToList();
+
+            foreach (var item in result)
+            {
+                Console.WriteLine($"\nTípus: {item.BoxType} - {item.Count} db ilyen típusú csomag van");
+                Console.WriteLine($"Összes súly: {item.TotalWeight:F2} kg");
+                Console.WriteLine($"Átlagos súly: {item.AvgWeight:F2} kg");
             }
 
             Console.WriteLine("Nyomj egy ENTERT a kilépéshez");
@@ -55,35 +84,47 @@ namespace PackageDelivery.Service
 
         public void TopFiveSenders()
         {
-            
-                var packages = _db.Packages
-                    .GroupBy(p => p.SenderId)
-                    .Select(g => new
-                    {
-                        SenderId = g.Key,
-                        Count = g.Count(),
-                        TotalWeight = g.Sum(p => p.Weight)
-                    })
-                    .OrderByDescending(x => x.Count)
-                    .Take(5)
-                    .ToList();
 
-                if (packages.Count < 5)
+            var packages = _db.Packages
+                .GroupBy(p => p.SenderId)
+                .Select(g => new
                 {
-                    Console.WriteLine("\nNincs még elegendő feladott csomag a TOP5-ös statisztikához.");
-                }
+                    SenderId = g.Key,
+                    Count = g.Count(),
+                    TotalWeight = g.Sum(p => p.Weight)
+                })
+                .OrderByDescending(x => x.Count)
+                .Take(5)
+                .ToList();
 
-                Console.WriteLine($"TOP {packages.Count}: ");
-                
-                 
-                foreach (var item in packages)
-                {
-                    // Lekérjük a nevet az ID alapján az adatbázisból
-                    var customer = _db.Customers.FirstOrDefault(c => c.Id == item.SenderId);
+            if (packages.Count == 0)
+            {
+                Console.WriteLine("\nNincs a feltételnek megfelelő csomag.");
+                Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
+                Console.ReadKey();
+                return;
+            }
 
-                    Console.WriteLine($"\nFeladó: {customer?.Name} - {item.Count} db csomagot adott fel, összes súly: {item.TotalWeight} kg");
-                
-                }
+            var senderIds = packages.Select(x => x.SenderId).ToList();
+            var senderNames = _db.Customers
+                .Where(c => senderIds.Contains(c.Id))
+                .ToDictionary(c => c.Id, c => c.Name);
+
+            if (packages.Count < 5)
+            {
+                Console.WriteLine("\nNincs még elegendő feladott csomag a TOP5-ös statisztikához.");
+            }
+
+            Console.WriteLine($"TOP {packages.Count}: ");
+
+            foreach (var item in packages)
+            {
+                string? senderName = senderNames.TryGetValue(item.SenderId, out var name)
+                    ? name
+                    : "Ismeretlen ügyfél";
+
+                Console.WriteLine($"\nFeladó: {senderName} - {item.Count} db csomagot adott fel, összes súly: {item.TotalWeight:F2} kg");
+            }
 
             Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
             Console.ReadKey();
@@ -93,6 +134,8 @@ namespace PackageDelivery.Service
         public void ReasonsForUnsuccessfulDeliveries()
         {
 
+            string[] knownReasons = { "RecipientNotAvailable", "AddressNotFound", "RecipientRefused" };
+
             var packages = _db.Trackings
                 .Where(p => p.FailureReason != null)
                 .GroupBy(p => p.FailureReason)
@@ -101,10 +144,18 @@ namespace PackageDelivery.Service
                     Reason = g.Key,
                     Count = g.Count()
                 })
+                .ToList();
+
+            var result = knownReasons
+                .Select(r => new
+                {
+                    Reason = r,
+                    Count = packages.FirstOrDefault(g => g.Reason == r)?.Count ?? 0
+                })
                 .OrderByDescending(x => x.Count)
                 .ToList();
 
-            foreach (var item in packages)
+            foreach (var item in result)
             {
                 Console.WriteLine($"\nHiba oka: {item.Reason} - {item.Count} db sikertelen kézbesítés");
             }
@@ -125,7 +176,7 @@ namespace PackageDelivery.Service
 
                 if (DateTime.TryParse(input, out startDate))
                 {
-                     isValidStartDate = true;
+                    isValidStartDate = true;
                 }
                 else
                 {
@@ -143,7 +194,14 @@ namespace PackageDelivery.Service
 
                 if (DateTime.TryParse(input, out endDate))
                 {
-                    isValidEndDate = true;
+                    if (startDate > endDate)
+                    {
+                        Console.WriteLine("A kezdő dátumnak kisebbnek vagy egyenlőnek kell lennie, mint a záró dátumnak!");
+                    }
+                    else
+                    {
+                        isValidEndDate = true;
+                    }
                 }
                 else
                 {
@@ -158,17 +216,34 @@ namespace PackageDelivery.Service
                 .OrderBy(p => p.CreatedAt)
                 .ToList();
 
-            Console.WriteLine($"\n{packages.Count} db csomag lett feladva a megadott időszakban.");
-            Console.WriteLine($"Összes súly: {packages.Sum(p => p.Weight)} kg");
-            Console.WriteLine($"Átlagos súly: {packages.Average(p => p.Weight)} kg");
-
-            Console.WriteLine("\n");
-
-            foreach (var item in packages)
+            if (packages.Count == 0)
             {
-                Console.WriteLine($"Csomagszám: {item.TrackingNumber} - Feladási idő: {item.CreatedAt}");
+                Console.WriteLine("Nincs a feltételnek megfelelő csomag.");
             }
-            
+
+            else
+            {
+                double totalWeight = packages
+                    .Sum(p => p.Weight);
+
+                double avgWeight = packages
+                    .Select(p => p.Weight)
+                    .DefaultIfEmpty(0)
+                    .Average();
+
+
+                Console.WriteLine($"\n{packages.Count} db csomag lett feladva a megadott időszakban.");
+                Console.WriteLine($"Összes súly: {totalWeight:F2} kg");
+                Console.WriteLine($"Átlagos súly: {avgWeight:F2} kg");
+
+                Console.WriteLine("\n");
+
+                foreach (var item in packages)
+                {
+                    Console.WriteLine($"Csomagszám: {item.TrackingNumber} - Feladási idő: {item.CreatedAt}");
+                }
+            }
+
             Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
             Console.ReadKey();
         }
@@ -184,24 +259,27 @@ namespace PackageDelivery.Service
             if (packages.Count == 0)
             {
                 Console.WriteLine("\nNincs speciális kezelést igénylő csomag.");
-                Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
-                Console.ReadKey();
-                return;
             }
 
-            foreach (var item in packages)
+            else
             {
-                if (item.BoxType == Package.Type.Fragile)
+                foreach (var item in packages)
                 {
-                    Console.WriteLine($"Tipus: {item.BoxType}");
-                    Console.WriteLine("Törékenységi szint: " + ((FragilePackage)item).FragileLevel);
-                    Console.WriteLine("Kezelési utasítások: " + ((FragilePackage)item).HandlingInstructions);
-                    Console.WriteLine("\n");
-                }
-                else if (item.BoxType == Package.Type.Refrigerated)
-                {
-                    Console.WriteLine($"Tipus: {item.BoxType}");
-                    Console.WriteLine($"Hőmérséklet: {((RefrigeratedPackage)item).MinTemperature} °C és {((RefrigeratedPackage)item).MaxTemperature} °C");
+                    if (item.BoxType == Package.Type.Fragile)
+                    {
+                        Console.WriteLine($"Csomag: {item.TrackingNumber}");
+                        Console.WriteLine($"Tipus: {item.BoxType}");
+                        Console.WriteLine("Törékenységi szint: " + ((FragilePackage)item).FragileLevel);
+                        Console.WriteLine("Kezelési utasítások: " + ((FragilePackage)item).HandlingInstructions);
+                        Console.WriteLine("\n");
+                    }
+                    else if (item.BoxType == Package.Type.Refrigerated)
+                    {
+                        Console.WriteLine($"Csomag: {item.TrackingNumber}");
+                        Console.WriteLine($"Tipus: {item.BoxType}");
+                        Console.WriteLine($"Hőmérséklet: {((RefrigeratedPackage)item).MinTemperature} °C és {((RefrigeratedPackage)item).MaxTemperature} °C");
+                        Console.WriteLine("\n");
+                    }
                 }
             }
 

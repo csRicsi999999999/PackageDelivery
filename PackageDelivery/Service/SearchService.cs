@@ -17,12 +17,12 @@ namespace PackageDelivery.Service
             _db = db;
             _packageService = new PackageService(_db);
         }
-        bool isValid = false;
         public void SearchByTrackingId()
         {
             Console.WriteLine("Adj meg kérlek egy nyomkövetési azonosítót: ");
 
             string? trackingId = null;
+            bool isValid = false;
 
             while (!isValid)
             {
@@ -57,9 +57,16 @@ namespace PackageDelivery.Service
                 .Where(p => p.TrackingNumber == trackingId)
                 .ToList();
 
-            foreach (var item in packages)
+            if (packages.Count == 0)
             {
-                _packageService.DisplayText(item);
+                Console.WriteLine("\nNincs a feltételnek megfelelő csomag.");
+            }
+            else
+            {
+                foreach (var item in packages)
+                {
+                    _packageService.DisplayText(item);
+                }
             }
 
             Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
@@ -80,7 +87,7 @@ namespace PackageDelivery.Service
 
             int senderIndex;
             Customer? sender = null;
-            isValid = false;
+            bool isValid = false;
 
             while (!isValid)
                 try
@@ -109,9 +116,17 @@ namespace PackageDelivery.Service
                 .OrderByDescending(p => p.CreatedAt)
                 .ToList();
 
-            foreach (var item in packages)
+            if (packages.Count == 0)
             {
-                _packageService.DisplayText(item);
+                Console.WriteLine("Nincs a feltételnek megfelelő csomag.");
+            }
+
+            else
+            {
+                foreach (var item in packages)
+                {
+                    _packageService.DisplayText(item);
+                }
             }
 
             Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
@@ -133,7 +148,7 @@ namespace PackageDelivery.Service
 
             int recipientIndex;
             Customer? recipient = null;
-            isValid = false;
+            bool isValid = false;
 
             while (!isValid)
                 try
@@ -162,11 +177,21 @@ namespace PackageDelivery.Service
                .OrderByDescending(p => p.CreatedAt)
                .ToList();
 
-            foreach (var item in packages)
+            if (packages.Count == 0)
             {
-                _packageService.DisplayText(item);
+                Console.WriteLine("Nincs a feltételnek megfelelő csomag.");
             }
 
+            else
+            {
+                foreach (var item in packages)
+                {
+                    _packageService.DisplayText(item);
+                }
+            }
+
+            Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
+            Console.ReadKey();
         }
 
         private void DisplayPackagesByStatus(PackageStatus status)
@@ -175,14 +200,22 @@ namespace PackageDelivery.Service
                 .Where(p => p.Status == status)
                 .ToList();
 
-            foreach (var item in packages)
+            if (packages.Count == 0)
             {
-                _packageService.DisplayText(item);
+                Console.WriteLine("Nincs a feltételnek megfelelő csomag.");
+            }
+
+            else
+            {
+                foreach (var item in packages)
+                {
+                    _packageService.DisplayText(item);
+                }
             }
         }
         public void SearchByStatus()
         {
-            isValid = false;
+            bool isValid = false;
 
             while (!isValid)
             {
@@ -261,20 +294,28 @@ namespace PackageDelivery.Service
 
         }
 
-        private void DisplayPackagesByType(Package.Type boxType)
+        public void DisplayPackagesByType(Package.Type boxType)
         {
             var packages = _db.Packages
                 .Where(p => p.BoxType == boxType)
                 .ToList();
 
-            foreach (var item in packages)
+            if (packages.Count == 0)
             {
-                _packageService.DisplayText(item);
+                Console.WriteLine("Nincs a feltételnek megfelelő csomag.");
+            }
+
+            else
+            {
+                foreach (var item in packages)
+                {
+                    _packageService.DisplayText(item);
+                }
             }
         }
         public void SearchByPackageType()
         {
-            isValid = false;
+            bool isValid = false;
 
             while (!isValid)
             {
@@ -350,12 +391,20 @@ namespace PackageDelivery.Service
 
                 if (DateTime.TryParse(input, out endDate))
                 {
-                    isValidEndDate = true;
+                    if (startDate > endDate)
+                    {
+                        Console.WriteLine("A kezdő dátumnak kisebbnek vagy egyenlőnek kell lennie, mint a záró dátumnak!");
+                    }
+                    else
+                    {
+                        isValidEndDate = true;
+                    }
                 }
                 else
                 {
                     Console.WriteLine("Hibás dátumformátum! Kérlek add meg újra.");
                 }
+
             }
 
             endDate = endDate.Date.AddDays(1).AddTicks(-1);
@@ -365,14 +414,21 @@ namespace PackageDelivery.Service
                 .OrderBy(p => p.CreatedAt)
                 .ToList();
 
-            foreach (var item in packages)
+            if (packages.Count == 0)
             {
-                _packageService.DisplayText(item);
+                Console.WriteLine("Nincs a feltételnek megfelelő csomag.");
+            }
+
+            else
+            {
+                foreach (var item in packages)
+                {
+                    _packageService.DisplayText(item);
+                }
             }
 
             Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
             Console.ReadKey();
-
         }
     }
 }
