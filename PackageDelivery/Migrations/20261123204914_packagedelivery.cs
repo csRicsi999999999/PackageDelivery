@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace PackageDelivery.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class packagedelivery : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -36,18 +36,20 @@ namespace PackageDelivery.Migrations
                     SenderId = table.Column<int>(type: "INTEGER", nullable: false),
                     RecipientId = table.Column<int>(type: "INTEGER", nullable: false),
                     Weight = table.Column<double>(type: "REAL", nullable: false),
-                    HandlingInstructions = table.Column<string>(type: "TEXT", nullable: true),
-                    MinTemperature = table.Column<double>(type: "REAL", nullable: true),
-                    MaxTemperature = table.Column<double>(type: "REAL", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     PostalCode = table.Column<int>(type: "INTEGER", nullable: false),
                     City = table.Column<string>(type: "TEXT", nullable: true),
                     StreetName = table.Column<string>(type: "TEXT", nullable: true),
                     StreetType = table.Column<string>(type: "TEXT", nullable: true),
-                    HouseNumber = table.Column<int>(type: "INTEGER", nullable: false),
+                    HouseNumber = table.Column<string>(type: "TEXT", nullable: true),
                     OtherInfo = table.Column<string>(type: "TEXT", nullable: true),
-                    Type = table.Column<int>(type: "INTEGER", nullable: true),
-                    Status = table.Column<int>(type: "INTEGER", nullable: false)
+                    Status = table.Column<int>(type: "INTEGER", nullable: false),
+                    BoxType = table.Column<int>(type: "INTEGER", nullable: false),
+                    Discriminator = table.Column<string>(type: "TEXT", maxLength: 21, nullable: false),
+                    FragileLevel = table.Column<int>(type: "INTEGER", nullable: true),
+                    HandlingInstructions = table.Column<string>(type: "TEXT", nullable: true),
+                    MinTemperature = table.Column<double>(type: "REAL", nullable: true),
+                    MaxTemperature = table.Column<double>(type: "REAL", nullable: true)
                 },
                 constraints: table =>
                 {

@@ -99,7 +99,7 @@ namespace PackageDelivery.Service
                     Console.WriteLine("\nAdd meg a telefonszámát újra: ");
                 }
             }
-             
+
             _db.Customers.Add(new Customer
             {
                 Name = name!.Trim(),
@@ -109,13 +109,13 @@ namespace PackageDelivery.Service
             _db.SaveChanges();
 
             Console.WriteLine("Az ugyfel rogzitve.");
-            
+
 
         }
         public void ShowCustomer()
         {
             foreach (Customer item in _db.Customers)
-            { 
+            {
                 Console.WriteLine($"{item.Id}: {item.Name} - {item.Email} - {item.PhoneNumber}");
             }
         }
@@ -123,44 +123,18 @@ namespace PackageDelivery.Service
         {
 
             var customers = GetAllCustomers();
-            Console.WriteLine("Ügyfelek listája: ");
-            foreach (var c in customers)
+
+            if (customers.Count == 0)
             {
-                Console.WriteLine($"{c.Id}: {c.Name}");
+                Console.WriteLine("\nNincs még rögzített ügyfél.");
+                return;
             }
 
-            Console.WriteLine("Add meg az ügyfél ID-ját: ");
+            Customer selectedCustomer = InputHelper.SelectCustomer(customers, "Add meg az ügyfél sorszámát");
 
-            int customerId = 0;
-            bool isValid = false;
-
-            while (!isValid)
-            {
-                try
-                {
-                    if (!int.TryParse(Console.ReadLine(), out customerId))
-                    {
-                        throw new ArgumentException("Számot adj meg");
-                    }
-                    if (customerId < 1 || customerId > _db.Customers.Count())
-                    {
-                        throw new ArgumentException("Érvénytelen választás");
-                    }
-                    isValid = true;
-                }
-                catch (ArgumentException ex)
-                {
-                    Console.WriteLine(ex.Message);
-                    Console.WriteLine("\nAdd meg az ügyfél ID-ját újra: ");
-                }
-            }
-
-            foreach(var item in _db.Customers.Where(c => c.Id == customerId))
-            {
-                Console.WriteLine($"\nÜgyfél neve: {item.Name}");
-                Console.WriteLine($"E-mail cím: {item.Email}");
-                Console.WriteLine($"Telefonszám: {item.PhoneNumber}");
-            }
+            Console.WriteLine($"\nÜgyfél neve: {selectedCustomer.Name}");
+            Console.WriteLine($"E-mail cím: {selectedCustomer.Email}");
+            Console.WriteLine($"Telefonszám: {selectedCustomer.PhoneNumber}");
 
             Console.WriteLine("\nNyomj egy ENTERT a kilépéshez");
             Console.ReadKey();
@@ -171,6 +145,17 @@ namespace PackageDelivery.Service
 
             string? choice = null;
             string? result = "";
+
+            var customers = GetAllCustomers();
+
+            if (customers.Count == 0)
+            {
+                Console.WriteLine("\nNincs még rögzített ügyfél.");
+                return;
+            }
+
+            Customer customer = InputHelper.SelectCustomer(customers, "Add meg az ügyfél sorszámát");
+
             bool isValid = false;
 
             while (!isValid)
@@ -191,38 +176,7 @@ namespace PackageDelivery.Service
                 {
                     Console.WriteLine(ex.Message);
                     Console.WriteLine("\nAdd meg a választásod újra: ");
-                    choice = Console.ReadLine();
                 }
-            }
-
-            var customers = GetAllCustomers();
-            Console.WriteLine("Ügyfelek listája: ");
-            foreach (var item in customers)
-            {
-                Console.WriteLine($"{item.Id}: {item.Name}");
-            }
-
-            int customerId = 0;
-            bool isIdValid = false;
-       
-                while (!isIdValid)
-                {
-                    Console.Write("Add meg az ügyfél ID-ját: ");
-                    if (int.TryParse(Console.ReadLine(), out customerId))
-                    {
-                        isIdValid = true;
-                    }
-                    else
-                    {
-                        Console.WriteLine("Érvénytelen ID! Csak számot adj meg.");
-                    }
-                }
-
-            var customer = _db.Customers.Find(customerId);
-            if (customer == null)
-            {
-                Console.WriteLine("Az ügyfél nem található.");
-                return;
             }
 
             switch (choice)
@@ -331,42 +285,8 @@ namespace PackageDelivery.Service
 
         public void ShowCustomerSender()
         {
-            bool isValid = false;
-
             var customers = GetAllCustomers();
-            Console.WriteLine("Ügyfelek listája: ");
-            foreach (var item in customers)
-            {
-                Console.WriteLine($"{item.Id}: {item.Name}");
-            }
-
-            Console.Write("\nAdd meg az ügyfél ID-ját: ");
-            int senderIndex;
-            Customer? sender = null;
-
-            while (!isValid)
-            {
-                try
-                {
-                    if (!int.TryParse(Console.ReadLine(), out senderIndex))
-                    {
-                        throw new ArgumentException("Számot adj meg");
-                    }
-                    if (senderIndex < 1 || senderIndex > customers?.Count)
-                    {
-                        throw new ArgumentException("Érvénytelen választás");
-                    }
-
-                    sender = customers?[senderIndex - 1];
-
-                    isValid = true;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                    Console.WriteLine("Add meg a számot újból:");
-                }
-            }
+            Customer sender = InputHelper.SelectCustomer(customers, "Add meg a feladó sorszámát");
 
             var packages = _db.Packages
                 .Where(p => p.SenderId == sender!.Id)
@@ -391,43 +311,9 @@ namespace PackageDelivery.Service
 
         public void ShowCustomerRecipient()
         {
-            
+
             var customers = GetAllCustomers();
-            Console.WriteLine("Ügyfelek listája: ");
-            foreach (var item in customers)
-            {
-                Console.WriteLine($"{item.Id}: {item.Name}");
-            }
-
-            Console.Write("\nAdd meg az ügyfél ID-ját: ");
-
-            int recipientIndex;
-            Customer? recipient = null;
-            bool isValid = false;
-
-            while (!isValid)
-            {
-                try
-                {
-                    if (!int.TryParse(Console.ReadLine(), out recipientIndex))
-                    {
-                        throw new ArgumentException("Számot adj meg");
-                    }
-                    if (recipientIndex < 1 || recipientIndex > customers?.Count)
-                    {
-                        throw new ArgumentException("Érvénytelen választás");
-                    }
-
-                    recipient = customers?[recipientIndex - 1];
-
-                    isValid = true;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                    Console.WriteLine("Add meg a számot újból:");
-                }
-            }
+            Customer recipient = InputHelper.SelectCustomer(customers, "Add meg a címzett sorszámát");
 
             var packages = _db.Packages
                 .Where(p => p.RecipientId == recipient!.Id)

@@ -77,39 +77,7 @@ namespace PackageDelivery.Service
         {
             var customers = customerService?.GetAllCustomers();
 
-            Console.WriteLine("\nElérhető ügyfelek:");
-            for (int i = 0; i < customers?.Count; i++)
-            {
-                Console.WriteLine($"{i + 1}. {customers[i].Name} ({customers[i].Email})");
-            }
-
-            Console.Write("\nAdd meg a feladó sorszámát: ");
-
-            int senderIndex;
-            Customer? sender = null;
-            bool isValid = false;
-
-            while (!isValid)
-                try
-                {
-                    if (!int.TryParse(Console.ReadLine(), out senderIndex))
-                    {
-                        throw new ArgumentException("Számot adj meg");
-                    }
-                    if (senderIndex < 1 || senderIndex > customers?.Count)
-                    {
-                        throw new ArgumentException("Érvénytelen választás");
-                    }
-
-                    sender = customers?[senderIndex - 1];
-
-                    isValid = true;
-                }
-                catch (ArgumentException ex)
-                {
-                    Console.WriteLine(ex.Message);
-                    Console.WriteLine("Add meg a számot újból:");
-                }
+            Customer sender = InputHelper.SelectCustomer(customers!, "Add meg a feladó sorszámát");
 
             var packages = _db.Packages
                 .Where(p => p.SenderId == sender!.Id)
@@ -137,40 +105,7 @@ namespace PackageDelivery.Service
         {
             var customers = customerService?.GetAllCustomers();
 
-
-            Console.WriteLine("\nElérhető ügyfelek:");
-            for (int i = 0; i < customers?.Count; i++)
-            {
-                Console.WriteLine($"{i + 1}. {customers[i].Name} ({customers[i].Email})");
-            }
-
-            Console.Write("\nAdd meg a címzett sorszámát: ");
-
-            int recipientIndex;
-            Customer? recipient = null;
-            bool isValid = false;
-
-            while (!isValid)
-                try
-                {
-                    if (!int.TryParse(Console.ReadLine(), out recipientIndex))
-                    {
-                        throw new ArgumentException("Számot adj meg");
-                    }
-                    if (recipientIndex < 1 || recipientIndex > customers?.Count)
-                    {
-                        throw new ArgumentException("Érvénytelen választás");
-                    }
-
-                    recipient = customers?[recipientIndex - 1];
-
-                    isValid = true;
-                }
-                catch (ArgumentException ex)
-                {
-                    Console.WriteLine(ex.Message);
-                    Console.WriteLine("Add meg a számot újból:");
-                }
+            Customer recipient = InputHelper.SelectCustomer(customers!, "Add meg a címzett sorszámát");
 
             var packages = _db.Packages
                .Where(p => p.RecipientId == recipient!.Id)
@@ -363,51 +298,7 @@ namespace PackageDelivery.Service
 
         public void SearchByPostingPeriod()
         {
-            DateTime startDate = DateTime.MinValue;
-            bool isValidStartDate = false;
-
-            while (!isValidStartDate)
-            {
-                Console.WriteLine("Add meg a kezdő dátumot (YYYY-MM-DD): ");
-                string input = Console.ReadLine()!;
-
-                if (DateTime.TryParse(input, out startDate))
-                {
-                    isValidStartDate = true;
-                }
-                else
-                {
-                    Console.WriteLine("Hibás dátumformátum! Kérlek add meg újra.");
-                }
-            }
-
-            DateTime endDate = DateTime.MaxValue;
-            bool isValidEndDate = false;
-
-            while (!isValidEndDate)
-            {
-                Console.WriteLine("Add meg a záró dátumot (YYYY-MM-DD): ");
-                string input = Console.ReadLine()!;
-
-                if (DateTime.TryParse(input, out endDate))
-                {
-                    if (startDate > endDate)
-                    {
-                        Console.WriteLine("A kezdő dátumnak kisebbnek vagy egyenlőnek kell lennie, mint a záró dátumnak!");
-                    }
-                    else
-                    {
-                        isValidEndDate = true;
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Hibás dátumformátum! Kérlek add meg újra.");
-                }
-
-            }
-
-            endDate = endDate.Date.AddDays(1).AddTicks(-1);
+            var (startDate, endDate) = InputHelper.ReadDateRange();
 
             var packages = _db.Packages
                 .Where(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate)

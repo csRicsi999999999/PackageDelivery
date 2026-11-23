@@ -59,13 +59,34 @@ namespace PackageDelivery.Service
             Package? pkg = _db.Packages.Find(packageId);
             if (pkg == null) return "Nincs ilyen csomag azonosító.";
 
+            if (pkg.Status == PackageStatus.Delivered || pkg.Status == PackageStatus.Returned)
+            {
+                return "A csomag már végállapotban van, állapota nem módosítható.";
+            }
+
             if (!IsStateChangeValid(pkg.Status, nextStatus))
             {
                 return "Ez az állapot váltás nem engedélyezett.";
             }
 
-            pkg.Status = nextStatus;
+            if (nextStatus == PackageStatus.DeliveryFailed)
+            {
+                if (string.IsNullOrWhiteSpace(failureReason))
+                {
+                    return "Sikertelen kézbesítéshez kötelező megadni az okot.";
+                }
 
+                int failedAttempts = _db.Trackings
+                    .Where(t => t.PackageId == pkg.Id)
+                    .Count(t => t.Status == PackageStatus.DeliveryFailed);
+
+                if (failedAttempts >= 3)
+                {
+                    return "A csomagnál már megtörtént a 3 sikertelen kézbesítési kísérlet, csak visszaküldés indítható.";
+                }
+            }
+
+            pkg.Status = nextStatus;
 
             var tracking = new Trackings
             {
@@ -129,87 +150,13 @@ namespace PackageDelivery.Service
                 return;
             }
 
-            Console.WriteLine("Ügyfelek listája: ");
-            foreach (var c in customers!)
-            {
-                Console.WriteLine($"{c.Id}: {c.Name}");
-            }
-
-
-            Console.Write("\nAdd meg a feladó sorszámát: ");
-
-            int senderIndex;
-            Customer? sender = null;
-            bool isValid = false;
-
-            while (!isValid)
-            {
-                try
-                {
-                    if (!int.TryParse(Console.ReadLine(), out senderIndex))
-                    {
-                        throw new ArgumentException("Számot adj meg");
-                    }
-                    if (senderIndex < 1 || senderIndex > customers?.Count)
-                    {
-                        throw new ArgumentException("Érvénytelen választás");
-                    }
-
-                    sender = customers?[senderIndex - 1];
-
-                    isValid = true;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                    Console.WriteLine("Add meg a számot újból:");
-                }
-            }
-
-            Console.Write("Add meg a címzett sorszámát: ");
-
-            int recipientIndex;
-            Customer? recipient = null;
-            isValid = false;
-
-            while (!isValid)
-            {
-                try
-                {
-
-                    if (!int.TryParse(Console.ReadLine(), out recipientIndex))
-                    {
-                        throw new ArgumentException("Számot adj meg");
-                    }
-                    if (recipientIndex < 1 || recipientIndex > customers?.Count)
-                    {
-                        throw new ArgumentException("Érvénytelen választás");
-                    }
-
-                    recipient = customers?[recipientIndex - 1];
-
-                    if (sender?.Id == recipient?.Id)
-                    {
-                        throw new ArgumentException("A feladó és a címzett nem lehet ugyanaz a személy!");
-                    }
-
-                    isValid = true;
-
-
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                    Console.WriteLine("Add meg a számot újból:");
-                }
-            }
-
-
+            Customer sender = InputHelper.SelectCustomer(customers, "Add meg a feladó sorszámát");
+            Customer recipient = InputHelper.SelectCustomer(customers, "Add meg a címzett sorszámát", sender.Id, false); 
             Console.WriteLine("\n--- Kézbesítési cím megadása ---");
             Console.WriteLine("Irányítószám: ");
 
             int postalCode = 0;
-            isValid = false;
+            bool isValid = false;
 
             while (!isValid)
             {
@@ -595,6 +542,8 @@ namespace PackageDelivery.Service
                 }
 
                 isValid = false;
+
+                Console.WriteLine("Add meg a csomag maximális tárolási hőmérsékletét Celsius-fokban: ");
 
                 while (!isValid)
                 {

@@ -20,9 +20,13 @@ namespace PackageDelivery.Service
         public void NumberOfPackagesByStatus()
         {
             var packages = _db.Packages
-                .Where(p => p.Status >= 0)
                 .GroupBy(p => p.Status)
-                .OrderByDescending(p => p.Count())
+                .Select(g => new
+                {
+                    Status = g.Key,
+                    Count = g.Count()
+                })
+                .OrderByDescending(x => x.Count)
                 .ToList();
 
             if (packages.Count == 0)
@@ -34,7 +38,7 @@ namespace PackageDelivery.Service
             {
                 foreach (var item in packages)
                 {
-                    Console.WriteLine("\n" + item.Key + ": " + item.Count() + "db ilyen állapotú csomag van");
+                    Console.WriteLine("\n" + item.Status + ": " + item.Count + "db ilyen állapotú csomag van");
                 }
             }
 
@@ -166,50 +170,7 @@ namespace PackageDelivery.Service
 
         public void TimePeriodReport()
         {
-            DateTime startDate = DateTime.MinValue;
-            bool isValidStartDate = false;
-
-            while (!isValidStartDate)
-            {
-                Console.WriteLine("Add meg a kezdő dátumot (YYYY-MM-DD): ");
-                string input = Console.ReadLine()!;
-
-                if (DateTime.TryParse(input, out startDate))
-                {
-                    isValidStartDate = true;
-                }
-                else
-                {
-                    Console.WriteLine("Hibás dátumformátum! Kérlek add meg újra.");
-                }
-            }
-
-            DateTime endDate = DateTime.MaxValue;
-            bool isValidEndDate = false;
-
-            while (!isValidEndDate)
-            {
-                Console.WriteLine("Add meg a záró dátumot (YYYY-MM-DD): ");
-                string input = Console.ReadLine()!;
-
-                if (DateTime.TryParse(input, out endDate))
-                {
-                    if (startDate > endDate)
-                    {
-                        Console.WriteLine("A kezdő dátumnak kisebbnek vagy egyenlőnek kell lennie, mint a záró dátumnak!");
-                    }
-                    else
-                    {
-                        isValidEndDate = true;
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Hibás dátumformátum! Kérlek add meg újra.");
-                }
-            }
-
-            endDate = endDate.Date.AddDays(1).AddTicks(-1);
+            var (startDate, endDate) = InputHelper.ReadDateRange();
 
             var packages = _db.Packages
                 .Where(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate)

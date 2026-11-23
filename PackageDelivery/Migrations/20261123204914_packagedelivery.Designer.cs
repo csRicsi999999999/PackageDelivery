@@ -11,8 +11,8 @@ using PackageDelivery.Data;
 namespace PackageDelivery.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261026151948_packagedelivery3")]
-    partial class packagedelivery3
+    [Migration("20261123204914_packagedelivery")]
+    partial class packagedelivery
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -49,10 +49,18 @@ namespace PackageDelivery.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("BoxType")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("City")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Discriminator")
+                        .IsRequired()
+                        .HasMaxLength(21)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("HouseNumber")
@@ -95,6 +103,10 @@ namespace PackageDelivery.Migrations
                         .IsUnique();
 
                     b.ToTable("Packages");
+
+                    b.HasDiscriminator<string>("Discriminator").HasValue("Package");
+
+                    b.UseTphMappingStrategy();
                 });
 
             modelBuilder.Entity("PackageDelivery.Models.Trackings", b =>
@@ -125,6 +137,32 @@ namespace PackageDelivery.Migrations
                     b.ToTable("Trackings");
                 });
 
+            modelBuilder.Entity("PackageDelivery.Models.FragilePackage", b =>
+                {
+                    b.HasBaseType("PackageDelivery.Models.Package");
+
+                    b.Property<int>("FragileLevel")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("HandlingInstructions")
+                        .HasColumnType("TEXT");
+
+                    b.HasDiscriminator().HasValue("FragilePackage");
+                });
+
+            modelBuilder.Entity("PackageDelivery.Models.RefrigeratedPackage", b =>
+                {
+                    b.HasBaseType("PackageDelivery.Models.Package");
+
+                    b.Property<double?>("MaxTemperature")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("MinTemperature")
+                        .HasColumnType("REAL");
+
+                    b.HasDiscriminator().HasValue("RefrigeratedPackage");
+                });
+
             modelBuilder.Entity("PackageDelivery.Models.Package", b =>
                 {
                     b.HasOne("PackageDelivery.Models.Customer", "Recipient")
@@ -147,7 +185,7 @@ namespace PackageDelivery.Migrations
             modelBuilder.Entity("PackageDelivery.Models.Trackings", b =>
                 {
                     b.HasOne("PackageDelivery.Models.Package", "Package")
-                        .WithMany("TrackingHistory")
+                        .WithMany()
                         .HasForeignKey("PackageId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -160,11 +198,6 @@ namespace PackageDelivery.Migrations
                     b.Navigation("RecipientPackages");
 
                     b.Navigation("SentPackages");
-                });
-
-            modelBuilder.Entity("PackageDelivery.Models.Package", b =>
-                {
-                    b.Navigation("TrackingHistory");
                 });
 #pragma warning restore 612, 618
         }
